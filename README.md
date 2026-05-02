@@ -183,10 +183,6 @@ x-orca-cache: HIT          ← served from cache, no upstream call
 
 `GET /v1/analytics/savings?baseline=gpt-4o&days=7` reports what your traffic would have cost on always-GPT-4 vs what it actually cost. The dashboard shows it as a tile.
 
-### Public benchmark
-
-A nightly GitHub Action runs `bench/run.py` against a Lite instance with real provider keys, publishes [BENCHMARK.md](./BENCHMARK.md). See [`bench/`](./bench/).
-
 ### Integrations
 
 Drop-in configs for [Continue.dev](./integrations/continue.json), [Aider](./integrations/aider.md), [Cursor](./integrations/cursor.md), [LangChain](./integrations/langchain_orcarouter.py), [LlamaIndex](./integrations/llamaindex_orcarouter.py), [Vercel AI SDK](./integrations/vercel_ai.ts), and any tool that speaks the OpenAI Chat Completions protocol. See [`integrations/`](./integrations/).
