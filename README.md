@@ -266,7 +266,6 @@ packages/
 - [x] Cross-provider prompt caching
 - [x] Continue.dev / Aider / LangChain / Cursor / Vercel AI SDK integrations
 - [x] Public benchmark + savings claim
-- [ ] Native provider implementations (migrate off LiteLLM for top 4)
 - [ ] Embeddings + image-gen proxy
 
 See [DEMO.md](./DEMO.md) for the failover demo.
