@@ -1,0 +1,41 @@
+"""Async SQLAlchemy engine factory.
+
+SQLite is the default, Postgres opt-in via DATABASE_URL=postgresql+asyncpg://...
+"""
+
+from __future__ import annotations
+
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+
+
+def build_engine(database_url: str) -> AsyncEngine:
+    """Build an async engine for the given URL.
+
+    SQLite gets `connect_args={"check_same_thread": False}` and a NullPool-equivalent
+    so concurrent test fixtures work; Postgres uses defaults.
+    """
+    if database_url.startswith("sqlite"):
+        return create_async_engine(
+            database_url,
+            connect_args={"check_same_thread": False},
+            future=True,
+        )
+    return create_async_engine(database_url, future=True, pool_pre_ping=True)
+
+
+_engine: AsyncEngine | None = None
+
+
+def get_engine(database_url: str) -> AsyncEngine:
+    """Process-wide singleton."""
+    global _engine
+    if _engine is None:
+        _engine = build_engine(database_url)
+    return _engine
+
+
+async def dispose_engine() -> None:
+    global _engine
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None

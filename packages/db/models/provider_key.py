@@ -1,0 +1,23 @@
+"""Provider keys — BYOK credentials for upstream LLM providers.
+
+Renamed from PlatformProviderKey in the SaaS edition. Same shape, no admin
+permissioning since the lite edition has a single user.
+"""
+
+from sqlalchemy import Boolean, Integer, LargeBinary, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from packages.db.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+
+
+class ProviderKey(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "provider_keys"
+
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    encrypted_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(30), nullable=False)
+    label: Mapped[str] = mapped_column(String(100), nullable=False, server_default="default")
+    is_enabled: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    rpm_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tpm_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    priority: Mapped[int] = mapped_column(Integer, server_default="0")

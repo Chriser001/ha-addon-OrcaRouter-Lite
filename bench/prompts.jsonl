@@ -1,0 +1,10 @@
+{"id": "summarize-1", "prompt": "Summarize the plot of Hamlet in three sentences."}
+{"id": "summarize-2", "prompt": "Summarize the difference between TCP and UDP in one paragraph."}
+{"id": "code-1", "prompt": "Write a Python function that returns the nth Fibonacci number using memoization."}
+{"id": "code-2", "prompt": "Write a SQL query to find the top 5 customers by total purchase amount in the last 30 days."}
+{"id": "explain-1", "prompt": "Explain how a transformer language model differs from an RNN."}
+{"id": "explain-2", "prompt": "Explain the CAP theorem in two paragraphs, with one concrete example."}
+{"id": "extract-1", "prompt": "From the text 'John Smith ordered 3 lattes for $14.50 on Monday', extract a JSON object with name, item, quantity, total, day."}
+{"id": "extract-2", "prompt": "List the three primary causes of the French Revolution as bullet points."}
+{"id": "translate-1", "prompt": "Translate to French: 'The quick brown fox jumps over the lazy dog.'"}
+{"id": "reason-1", "prompt": "If a train leaves Boston at 8 AM going 60 mph and another leaves NYC at 9 AM going 80 mph toward each other, and they're 220 miles apart, when do they meet?"}

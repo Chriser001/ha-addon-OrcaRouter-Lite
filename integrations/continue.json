@@ -1,0 +1,36 @@
+{
+  "$comment": "Drop into ~/.continue/config.json (replace the apiKey + apiBase). https://docs.continue.dev",
+  "models": [
+    {
+      "title": "OrcaRouter (auto)",
+      "provider": "openai",
+      "model": "auto",
+      "apiBase": "http://localhost:8000/v1",
+      "apiKey": "sk-orca-PASTE-YOUR-KEY-HERE"
+    },
+    {
+      "title": "Claude Sonnet via Orca",
+      "provider": "openai",
+      "model": "claude-3-5-sonnet-latest",
+      "apiBase": "http://localhost:8000/v1",
+      "apiKey": "sk-orca-PASTE-YOUR-KEY-HERE"
+    },
+    {
+      "title": "GPT-4o via Orca",
+      "provider": "openai",
+      "model": "gpt-4o",
+      "apiBase": "http://localhost:8000/v1",
+      "apiKey": "sk-orca-PASTE-YOUR-KEY-HERE"
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "Haiku autocomplete",
+    "provider": "openai",
+    "model": "claude-3-5-haiku-latest",
+    "apiBase": "http://localhost:8000/v1",
+    "apiKey": "sk-orca-PASTE-YOUR-KEY-HERE"
+  },
+  "embeddingsProvider": {
+    "$comment": "Lite v0.1 doesn't proxy embeddings yet — use a direct provider config here."
+  }
+}
