@@ -103,8 +103,11 @@ async def get_router(session) -> object:
 
         from sqlalchemy import select
 
+        from app.auto_routing import litellm_routing_strategy
         from app.config import get_settings
+        from app.seed import DEFAULT_WORKSPACE_ID
         from packages.db.models.provider_key import ProviderKey
+        from packages.db.models.routing_config import RoutingConfig
         from packages.litellm_adapter.client import OrcaLiteLLMClient
 
         settings = get_settings()
@@ -119,7 +122,25 @@ async def get_router(session) -> object:
             settings=settings,
         )
 
-        _cached_client = OrcaLiteLLMClient(deployments=deployments)
+        routing_row = (
+            await session.execute(
+                select(RoutingConfig).where(
+                    RoutingConfig.workspace_id == DEFAULT_WORKSPACE_ID,
+                    RoutingConfig.is_deleted == 0,
+                )
+            )
+        ).scalar_one_or_none()
+        strategy = routing_row.strategy if routing_row else "balanced"
+        preferred_models = (
+            list(routing_row.preferred_models or []) if routing_row else []
+        )
+
+        _cached_client = OrcaLiteLLMClient(
+            deployments=deployments,
+            strategy=strategy,
+            preferred_models=preferred_models,
+            litellm_routing_strategy=litellm_routing_strategy(strategy),
+        )
         return _cached_client
 
 

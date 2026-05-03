@@ -392,8 +392,31 @@
             </ol>
             <p class="hint">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              The chosen model comes back to your client in the <code>x-orca-resolved-model</code> response header.
+              The chosen model comes back to your client in the <code>x-orca-resolved-model</code> response header. The strategy in effect is echoed as <code>x-orca-routing-strategy</code>.
             </p>
+            <details class="auth-help">
+              <summary>How each strategy maps to LiteLLM Router</summary>
+              <div class="table-wrap" style="margin-top:8px">
+                <table class="strategy-map">
+                  <thead><tr>
+                    <th>Strategy</th>
+                    <th>litellm <code>routing_strategy</code></th>
+                    <th><code>model="auto"</code> picks</th>
+                  </tr></thead>
+                  <tbody>
+                    <tr><td><strong>balanced</strong></td><td><code>simple-shuffle</code> (RPM/TPM weighted)</td><td>cheapest capable</td></tr>
+                    <tr><td><strong>cheapest</strong></td><td><code>cost-based-routing</code></td><td>cheapest capable</td></tr>
+                    <tr><td><strong>fastest</strong></td><td><code>latency-based-routing</code></td><td>cheapest capable</td></tr>
+                    <tr><td><strong>quality</strong></td><td><code>simple-shuffle</code></td><td>most expensive capable (biggest)</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="muted" style="margin-top:8px">
+                The strategy controls two things: which model <code>model="auto"</code>
+                resolves to, and how LiteLLM Router picks between deployments
+                that serve the same model (e.g. local OpenAI key + hosted upstream).
+              </p>
+            </details>
           </article>
         </section>
 

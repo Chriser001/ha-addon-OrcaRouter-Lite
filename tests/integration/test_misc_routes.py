@@ -126,3 +126,18 @@ async def test_put_routing_rejects_unknown_strategy(lite_client):
     client, _ = lite_client
     r = await client.put("/v1/routing", json={"strategy": "magic-sauce"})
     assert r.status_code == 422
+
+
+async def test_put_routing_invalidates_cached_router(lite_client, monkeypatch):
+    """Changing the strategy must drop the cached client so the next request
+    rebuilds it with the new `routing_strategy`."""
+    client, _ = lite_client
+    from app import router_cache
+
+    sentinel = object()
+    router_cache._cached_client = sentinel
+    assert router_cache._cached_client is sentinel
+
+    r = await client.put("/v1/routing", json={"strategy": "cheapest"})
+    assert r.status_code == 200
+    assert router_cache._cached_client is None
