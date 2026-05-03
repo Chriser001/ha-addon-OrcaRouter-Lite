@@ -64,6 +64,15 @@ const fmtTime = (iso) => {
 const escapeHtml = (s = "") =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
 
+// Mirror of app/routes/analytics.py:_percentile — same nearest-rank
+// algorithm so client-derived percentiles match the backend's.
+function percentile(values, pct) {
+  if (!values.length) return 0;
+  const s = [...values].sort((a, b) => a - b);
+  const idx = Math.max(0, Math.min(s.length - 1, Math.round((s.length - 1) * pct)));
+  return Math.round(s[idx]);
+}
+
 /* ─────────────── HTTP ─────────────── */
 async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
@@ -549,11 +558,19 @@ function renderOverview() {
       ? `${state.savings.savings_percent}% smarter routing`
       : "vs always-GPT-4o baseline";
 
-  const allLat = (state.latency.by_provider || []).flatMap((p) => Array(p.request_count).fill(p.p50_ms));
-  const p50 = allLat.length ? Math.round(allLat.reduce((a, b) => a + b, 0) / allLat.length) : 0;
-  const p99Max = Math.max(0, ...(state.latency.by_provider || []).map((p) => p.p99_ms));
-  $("#kpi-p50").textContent = p50 ? `${fmtNum(p50)} ms` : "— ms";
-  $("#kpi-p99").textContent = p99Max ? `p99 ${fmtNum(p99Max)} ms` : "p99 — ms";
+  // True p50/p99 across raw request samples — averaging per-provider
+  // percentiles is the "median of medians" trap. The /v1/analytics/latency
+  // endpoint only exposes pre-aggregated per-provider values, so we derive
+  // global percentiles from the raw latency_ms in /v1/analytics/recent
+  // (already loaded into state.recent), using the same algorithm as the
+  // backend's _percentile() in app/routes/analytics.py.
+  const rawLat = (state.recent || [])
+    .map((r) => r.latency_ms)
+    .filter((n) => Number.isFinite(n) && n >= 0);
+  const p50 = percentile(rawLat, 0.5);
+  const p99 = percentile(rawLat, 0.99);
+  $("#kpi-p50").textContent = rawLat.length ? `${fmtNum(p50)} ms` : "— ms";
+  $("#kpi-p99").textContent = rawLat.length ? `p99 ${fmtNum(p99)} ms` : "p99 — ms";
 
   $("#kpi-models").textContent = state.models.length ? fmtNum(state.models.length) : "—";
   $("#kpi-providers").textContent = `${state.providers.length} provider${state.providers.length === 1 ? "" : "s"} configured`;
