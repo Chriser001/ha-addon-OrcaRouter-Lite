@@ -5,6 +5,23 @@
 
 const KEY_STORAGE = "orca-lite-api-key";
 const ONBOARDING_KEY = "orca-lite-getting-started-dismissed";
+const LOCALE_KEY = "orca-lite-locale";
+const SUPPORTED_LOCALES = ["en", "zh", "hi", "es", "pt", "ru", "ja", "de", "fr", "it", "ar", "ko"];
+const LOCALE_LABELS = { en: "English", zh: "中文", hi: "हिन्दी", es: "Español", pt: "Português", ru: "Русский", ja: "日本語", de: "Deutsch", fr: "Français", it: "Italiano", ar: "العربية", ko: "한국어" };
+const I18N = {
+  en: { "auth.tagline":"Open Source. Single Tenant.","auth.welcome":"Welcome back","auth.subtitle":"Paste the sk-orca-* key printed in your server logs on first run. Stored only in this browser via localStorage.","auth.api_key":"API key","auth.continue":"Continue","nav.search":"Search","nav.overview":"Overview","nav.providers":"Providers","nav.routing":"Routing","nav.analytics":"Analytics","nav.api_keys":"API keys","nav.help_docs":"Help & docs","nav.sign_out":"Sign out","status.connected":"Connected","status.disconnected":"Disconnected","auth.checking":"Checking…","auth.welcome_aboard":"Welcome aboard.","auth.key_invalid":"That key didn't work. Double-check the prefix sk-orca-…","tab.overview.title":"Overview","tab.overview.sub":"Your single-tenant LLM router at a glance.","tab.providers.title":"Provider keys","tab.providers.sub":"BYOK — encrypted at rest, used to call upstream LLMs.","tab.routing.title":"Routing","tab.routing.sub":"How model='auto' picks the right model for each request.","tab.analytics.title":"Analytics","tab.analytics.sub":"Local-only spend, latency and request history.","tab.keys.title":"API keys","tab.keys.sub":"Tokens that authenticate clients against this Lite workspace." },
+  zh: { "auth.tagline":"开源。单租户。","auth.welcome":"欢迎回来","auth.subtitle":"粘贴首次运行时服务器日志中的 sk-orca-* 密钥。仅保存在此浏览器 localStorage。","auth.api_key":"API 密钥","auth.continue":"继续","nav.search":"搜索","nav.overview":"概览","nav.providers":"供应商","nav.routing":"路由","nav.analytics":"分析","nav.api_keys":"API 密钥","nav.help_docs":"帮助与文档","nav.sign_out":"退出登录","status.connected":"已连接","status.disconnected":"已断开","auth.checking":"正在检查…","auth.welcome_aboard":"欢迎使用。","auth.key_invalid":"该密钥无效，请检查前缀 sk-orca-…","tab.overview.title":"概览","tab.overview.sub":"一览你的单租户 LLM 路由器。","tab.providers.title":"供应商密钥","tab.providers.sub":"BYOK — 静态加密存储，用于调用上游 LLM。","tab.routing.title":"路由","tab.routing.sub":"model='auto' 如何为每个请求选择合适模型。","tab.analytics.title":"分析","tab.analytics.sub":"仅本地的花费、延迟和请求历史。","tab.keys.title":"API 密钥","tab.keys.sub":"用于在此 Lite 工作区中验证客户端的令牌。" },
+  hi: { "auth.tagline":"ओपन सोर्स। सिंगल टेनेंट।","auth.welcome":"वापसी पर स्वागत है","auth.subtitle":"पहले रन पर सर्वर लॉग में छपी sk-orca-* कुंजी पेस्ट करें। यह केवल इस ब्राउज़र के localStorage में रहेगी।","auth.api_key":"API कुंजी","auth.continue":"जारी रखें","nav.search":"खोज","nav.overview":"अवलोकन","nav.providers":"प्रदाता","nav.routing":"रूटिंग","nav.analytics":"एनालिटिक्स","nav.api_keys":"API कुंजियाँ","nav.help_docs":"सहायता और दस्तावेज़","nav.sign_out":"साइन आउट","status.connected":"कनेक्टेड","status.disconnected":"डिस्कनेक्टेड","auth.checking":"जाँच हो रही है…","auth.welcome_aboard":"स्वागत है।","auth.key_invalid":"यह कुंजी काम नहीं कर रही। sk-orca- प्रीफिक्स जाँचें…","tab.overview.title":"ओवरव्यू","tab.overview.sub":"आपका सिंगल-टेनेंट LLM राउटर एक नज़र में।","tab.providers.title":"प्रोवाइडर कुंजियाँ","tab.providers.sub":"BYOK — स्टोरेज में एन्क्रिप्टेड, अपस्ट्रीम LLM कॉल के लिए उपयोग।","tab.routing.title":"रूटिंग","tab.routing.sub":"model='auto' हर अनुरोध के लिए सही मॉडल कैसे चुनता है।","tab.analytics.title":"एनालिटिक्स","tab.analytics.sub":"केवल स्थानीय खर्च, लेटेंसी और अनुरोध इतिहास।","tab.keys.title":"API कुंजियाँ","tab.keys.sub":"इस Lite वर्कस्पेस पर क्लाइंट प्रमाणित करने वाले टोकन।" },
+  es: { "auth.tagline":"Código abierto. Inquilino único.","auth.welcome":"Bienvenido de nuevo","auth.subtitle":"Pega la clave sk-orca-* mostrada en los logs del servidor en el primer inicio. Solo se guarda en este navegador mediante localStorage.","auth.api_key":"Clave API","auth.continue":"Continuar","nav.search":"Buscar","nav.overview":"Resumen","nav.providers":"Proveedores","nav.routing":"Enrutamiento","nav.analytics":"Analíticas","nav.api_keys":"Claves API","nav.help_docs":"Ayuda y documentación","nav.sign_out":"Cerrar sesión","status.connected":"Conectado","status.disconnected":"Desconectado","auth.checking":"Verificando…","auth.welcome_aboard":"Bienvenido.","auth.key_invalid":"Esa clave no funcionó. Verifica el prefijo sk-orca-…","tab.overview.title":"Resumen","tab.overview.sub":"Tu enrutador LLM de inquilino único de un vistazo.","tab.providers.title":"Claves de proveedor","tab.providers.sub":"BYOK — cifradas en reposo, usadas para llamar a LLMs upstream.","tab.routing.title":"Enrutamiento","tab.routing.sub":"Cómo model='auto' elige el modelo adecuado para cada solicitud.","tab.analytics.title":"Analíticas","tab.analytics.sub":"Gasto, latencia e historial de solicitudes solo local.","tab.keys.title":"Claves API","tab.keys.sub":"Tokens que autentican clientes en este espacio Lite." },
+  pt: { "auth.tagline":"Código aberto. Locatário único.","auth.welcome":"Bem-vindo de volta","auth.subtitle":"Cole a chave sk-orca-* exibida nos logs do servidor na primeira execução. Armazenada apenas neste navegador via localStorage.","auth.api_key":"Chave API","auth.continue":"Continuar","nav.search":"Pesquisar","nav.overview":"Visão geral","nav.providers":"Provedores","nav.routing":"Roteação","nav.analytics":"Análises","nav.api_keys":"Chaves API","nav.help_docs":"Ajuda e docs","nav.sign_out":"Sair","status.connected":"Conectado","status.disconnected":"Desconectado","auth.checking":"Verificando…","auth.welcome_aboard":"Boas-vindas.","auth.key_invalid":"Essa chave não funcionou. Verifique o prefixo sk-orca-…","tab.overview.title":"Visão geral","tab.overview.sub":"Seu roteador LLM single-tenant em um relance.","tab.providers.title":"Chaves de provedor","tab.providers.sub":"BYOK — criptografadas em repouso, usadas para chamar LLMs upstream.","tab.routing.title":"Roteamento","tab.routing.sub":"Como model='auto' escolhe o modelo certo para cada solicitação.","tab.analytics.title":"Análises","tab.analytics.sub":"Gasto, latência e histórico de solicitações apenas locais.","tab.keys.title":"Chaves API","tab.keys.sub":"Tokens que autenticam clientes neste workspace Lite." },
+  ru: { "auth.tagline":"Открытый исходный код. Один арендатор.","auth.welcome":"С возвращением","auth.subtitle":"Вставьте ключ sk-orca-*, показанный в логах сервера при первом запуске. Он хранится только в localStorage этого браузера.","auth.api_key":"API-ключ","auth.continue":"Продолжить","nav.search":"Поиск","nav.overview":"Обзор","nav.providers":"Провайдеры","nav.routing":"Маршрутизация ИИ","nav.analytics":"Аналитика","nav.api_keys":"API-ключи","nav.help_docs":"Помощь и документация","nav.sign_out":"Выйти","status.connected":"Подключено","status.disconnected":"Отключено","auth.checking":"Проверка…","auth.welcome_aboard":"Добро пожаловать.","auth.key_invalid":"Ключ не подошел. Проверьте префикс sk-orca-…","tab.overview.title":"Обзор","tab.overview.sub":"Ваш single-tenant маршрутизатор LLM в одном экране.","tab.providers.title":"Ключи провайдеров","tab.providers.sub":"BYOK — шифруются при хранении, используются для вызова внешних LLM.","tab.routing.title":"Маршрутизация","tab.routing.sub":"Как model='auto' выбирает подходящую модель для каждого запроса.","tab.analytics.title":"Аналитика","tab.analytics.sub":"Локальные расходы, задержка и история запросов.","tab.keys.title":"API-ключи","tab.keys.sub":"Токены для аутентификации клиентов в этом Lite workspace." },
+  ja: { "auth.tagline":"オープンソース。シングルテナント。","auth.welcome":"おかえりなさい","auth.subtitle":"初回起動時にサーバーログへ表示された sk-orca-* キーを貼り付けてください。localStorage にのみ保存されます。","auth.api_key":"APIキー","auth.continue":"続行","nav.search":"検索","nav.overview":"概要","nav.providers":"プロバイダー","nav.routing":"経路制御","nav.analytics":"分析","nav.api_keys":"APIキー","nav.help_docs":"ヘルプとドキュメント","nav.sign_out":"サインアウト","status.connected":"接続済み","status.disconnected":"未接続","auth.checking":"確認中…","auth.welcome_aboard":"ようこそ。","auth.key_invalid":"キーが無効です。接頭辞 sk-orca- を確認してください…","tab.overview.title":"概要","tab.overview.sub":"シングルテナント LLM ルーターの概要。","tab.providers.title":"プロバイダーキー","tab.providers.sub":"BYOK — 保存時に暗号化され、上流 LLM 呼び出しに使用。","tab.routing.title":"ルーティング","tab.routing.sub":"model='auto' が各リクエストに最適なモデルを選択する方法。","tab.analytics.title":"分析","tab.analytics.sub":"ローカル限定のコスト・遅延・リクエスト履歴。","tab.keys.title":"APIキー","tab.keys.sub":"この Lite ワークスペースでクライアント認証に使うトークン。" },
+  de: { "auth.tagline":"Open Source. Einzelmandant.","auth.welcome":"Willkommen zurück","auth.subtitle":"Fügen Sie den beim ersten Start in den Server-Logs ausgegebenen sk-orca-* Schlüssel ein. Er wird nur in diesem Browser per localStorage gespeichert.","auth.api_key":"API-Schlüssel","auth.continue":"Weiter","nav.search":"Suchen","nav.overview":"Übersicht","nav.providers":"Anbieter","nav.routing":"Weiterleitung","nav.analytics":"Analysen","nav.api_keys":"API-Schlüssel","nav.help_docs":"Hilfe & Doku","nav.sign_out":"Abmelden","status.connected":"Verbunden","status.disconnected":"Getrennt","auth.checking":"Prüfe…","auth.welcome_aboard":"Willkommen an Bord.","auth.key_invalid":"Dieser Schlüssel funktioniert nicht. Prüfen Sie das Präfix sk-orca-…","tab.overview.title":"Übersicht","tab.overview.sub":"Ihr Single-Tenant-LLM-Router auf einen Blick.","tab.providers.title":"Anbieterschlüssel","tab.providers.sub":"BYOK — im Ruhezustand verschlüsselt, für Upstream-LLM-Aufrufe genutzt.","tab.routing.title":"Routing","tab.routing.sub":"Wie model='auto' für jede Anfrage das richtige Modell auswählt.","tab.analytics.title":"Analysen","tab.analytics.sub":"Nur lokale Ausgaben, Latenz und Anfrageverlauf.","tab.keys.title":"API-Schlüssel","tab.keys.sub":"Token zur Authentifizierung von Clients in diesem Lite-Workspace." },
+  fr: { "auth.tagline":"Open source. Locataire unique.","auth.welcome":"Bon retour","auth.subtitle":"Collez la clé sk-orca-* affichée dans les logs serveur au premier démarrage. Elle est stockée uniquement dans ce navigateur via localStorage.","auth.api_key":"Clé API","auth.continue":"Continuer","nav.search":"Rechercher","nav.overview":"Vue d'ensemble","nav.providers":"Fournisseurs","nav.routing":"Routage IA","nav.analytics":"Analytique","nav.api_keys":"Clés API","nav.help_docs":"Aide et docs","nav.sign_out":"Se déconnecter","status.connected":"Connecté","status.disconnected":"Déconnecté","auth.checking":"Vérification…","auth.welcome_aboard":"Bienvenue.","auth.key_invalid":"Cette clé n'a pas fonctionné. Vérifiez le préfixe sk-orca-…","tab.overview.title":"Vue d'ensemble","tab.overview.sub":"Votre routeur LLM mono-locataire en un coup d'œil.","tab.providers.title":"Clés fournisseur","tab.providers.sub":"BYOK — chiffrées au repos, utilisées pour appeler les LLM amont.","tab.routing.title":"Routage","tab.routing.sub":"Comment model='auto' choisit le bon modèle pour chaque requête.","tab.analytics.title":"Analytique","tab.analytics.sub":"Dépenses, latence et historique des requêtes en local uniquement.","tab.keys.title":"Clés API","tab.keys.sub":"Jetons qui authentifient les clients sur cet espace Lite." },
+  it: { "auth.tagline":"Open source. Tenant singolo.","auth.welcome":"Bentornato","auth.subtitle":"Incolla la chiave sk-orca-* mostrata nei log del server al primo avvio. Viene salvata solo in questo browser tramite localStorage.","auth.api_key":"Chiave API","auth.continue":"Continua","nav.search":"Cerca","nav.overview":"Panoramica","nav.providers":"Provider","nav.routing":"Smistamento","nav.analytics":"Analitica","nav.api_keys":"Chiavi API","nav.help_docs":"Aiuto e documentazione","nav.sign_out":"Disconnetti","status.connected":"Connesso","status.disconnected":"Disconnesso","auth.checking":"Verifica…","auth.welcome_aboard":"Benvenuto.","auth.key_invalid":"La chiave non ha funzionato. Controlla il prefisso sk-orca-…","tab.overview.title":"Panoramica","tab.overview.sub":"Il tuo router LLM single-tenant a colpo d'occhio.","tab.providers.title":"Chiavi provider","tab.providers.sub":"BYOK — crittografate a riposo, usate per chiamare LLM upstream.","tab.routing.title":"Instradamento","tab.routing.sub":"Come model='auto' sceglie il modello giusto per ogni richiesta.","tab.analytics.title":"Analitica","tab.analytics.sub":"Spesa locale, latenza e cronologia richieste.","tab.keys.title":"Chiavi API","tab.keys.sub":"Token che autenticano i client in questo workspace Lite." },
+  ar: { "auth.tagline":"مفتوح المصدر. مستأجر واحد.","auth.welcome":"مرحبًا بعودتك","auth.subtitle":"ألصق مفتاح sk-orca-* المطبوع في سجلات الخادم عند التشغيل الأول. يُخزَّن فقط في هذا المتصفح عبر localStorage.","auth.api_key":"مفتاح API","auth.continue":"متابعة","nav.search":"بحث","nav.overview":"نظرة عامة","nav.providers":"المزوّدون","nav.routing":"توجيه الطلبات","nav.analytics":"التحليلات","nav.api_keys":"مفاتيح API","nav.help_docs":"المساعدة والوثائق","nav.sign_out":"تسجيل الخروج","status.connected":"متصل","status.disconnected":"غير متصل","auth.checking":"جارٍ التحقق…","auth.welcome_aboard":"مرحبًا بك.","auth.key_invalid":"هذا المفتاح لم يعمل. تحقّق من البادئة sk-orca-…","tab.overview.title":"نظرة عامة","tab.overview.sub":"موجّه LLM أحادي المستأجر بنظرة سريعة.","tab.providers.title":"مفاتيح المزوّدين","tab.providers.sub":"BYOK — مشفّرة أثناء التخزين وتُستخدم لاستدعاء نماذج LLM الخارجية.","tab.routing.title":"التوجيه","tab.routing.sub":"كيف يختار model='auto' النموذج المناسب لكل طلب.","tab.analytics.title":"التحليلات","tab.analytics.sub":"الإنفاق والزمن والسجل المحلي للطلبات فقط.","tab.keys.title":"مفاتيح API","tab.keys.sub":"رموز مصادقة العملاء في مساحة Lite هذه." },
+  ko: { "auth.tagline":"오픈 소스. 단일 테넌트.","auth.welcome":"다시 오신 것을 환영합니다","auth.subtitle":"첫 실행 시 서버 로그에 출력된 sk-orca-* 키를 붙여넣으세요. 이 브라우저의 localStorage에만 저장됩니다.","auth.api_key":"API 키","auth.continue":"계속","nav.search":"검색","nav.overview":"개요","nav.providers":"공급자","nav.routing":"경로 지정","nav.analytics":"분석","nav.api_keys":"API 키","nav.help_docs":"도움말 및 문서","nav.sign_out":"로그아웃","status.connected":"연결됨","status.disconnected":"연결 끊김","auth.checking":"확인 중…","auth.welcome_aboard":"환영합니다.","auth.key_invalid":"키가 올바르지 않습니다. sk-orca- 접두사를 확인하세요…","tab.overview.title":"개요","tab.overview.sub":"싱글 테넌트 LLM 라우터를 한눈에 확인하세요.","tab.providers.title":"공급자 키","tab.providers.sub":"BYOK — 저장 시 암호화되며 상위 LLM 호출에 사용됩니다.","tab.routing.title":"라우팅","tab.routing.sub":"model='auto'가 요청별로 적절한 모델을 고르는 방식입니다.","tab.analytics.title":"분석","tab.analytics.sub":"로컬 전용 비용, 지연 시간, 요청 기록.","tab.keys.title":"API 키","tab.keys.sub":"Lite 워크스페이스에서 클라이언트를 인증하는 토큰." },
+};
 const PROVIDERS_KNOWN = [
   { id: "openai",      label: "OpenAI"      },
   { id: "anthropic",   label: "Anthropic"   },
@@ -15,11 +32,11 @@ const PROVIDERS_KNOWN = [
   { id: "orcarouter",  label: "OrcaRouter (hosted)" },
 ];
 const TAB_META = {
-  overview:  { title: "Overview",     sub: "Your single-tenant LLM router at a glance." },
-  providers: { title: "Provider keys", sub: "BYOK — encrypted at rest, used to call upstream LLMs." },
-  routing:   { title: "Routing",      sub: "How model='auto' picks the right model for each request." },
-  analytics: { title: "Analytics",    sub: "Local-only spend, latency and request history." },
-  keys:      { title: "API keys",     sub: "Tokens that authenticate clients against this Lite workspace." },
+  overview:  { title: "tab.overview.title",  sub: "tab.overview.sub" },
+  providers: { title: "tab.providers.title", sub: "tab.providers.sub" },
+  routing:   { title: "tab.routing.title",   sub: "tab.routing.sub" },
+  analytics: { title: "tab.analytics.title", sub: "tab.analytics.sub" },
+  keys:      { title: "tab.keys.title",      sub: "tab.keys.sub" },
 };
 
 const state = {
@@ -34,7 +51,36 @@ const state = {
   models: [],
   windowDays: 7,
   lang: "python",
+  locale: "en",
 };
+const t = (k) => I18N[state.locale]?.[k] || I18N.en[k] || k;
+function detectLocale() {
+  const saved = localStorage.getItem(LOCALE_KEY);
+  if (saved && SUPPORTED_LOCALES.includes(saved)) return saved;
+  const browser = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
+  const base = browser.split("-")[0];
+  return SUPPORTED_LOCALES.includes(base) ? base : "en";
+}
+function applyI18n() {
+  document.documentElement.lang = state.locale;
+  document.documentElement.dir = state.locale === "ar" ? "rtl" : "ltr";
+  $$("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  if (TAB_META[state.tab]) {
+    $("#page-title").textContent = t(TAB_META[state.tab].title);
+    $("#page-sub").textContent = t(TAB_META[state.tab].sub);
+  }
+}
+function bindLocalePicker() {
+  const sel = $("#language-select");
+  if (!sel) return;
+  sel.innerHTML = SUPPORTED_LOCALES.map((lc) => `<option value="${lc}">${LOCALE_LABELS[lc]}</option>`).join("");
+  sel.value = state.locale;
+  sel.addEventListener("change", () => {
+    state.locale = sel.value;
+    localStorage.setItem(LOCALE_KEY, state.locale);
+    applyI18n();
+  });
+}
 
 /* ─────────────── tiny utils ─────────────── */
 const $  = (sel, root = document) => root.querySelector(sel);
@@ -184,8 +230,8 @@ function setTab(tab) {
   $$("#tabs .nav-item").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   $$(".panel").forEach((p) => p.classList.remove("active"));
   $(`#panel-${tab}`).classList.add("active");
-  $("#page-title").textContent = TAB_META[tab].title;
-  $("#page-sub").textContent = TAB_META[tab].sub;
+  $("#page-title").textContent = t(TAB_META[tab].title);
+  $("#page-sub").textContent = t(TAB_META[tab].sub);
   // refresh the tab's data so it's fresh-on-view
   if (tab === "analytics") loadAnalytics().then(renderAnalytics);
   if (tab === "providers") loadProviders().then(renderProviders);
@@ -708,10 +754,10 @@ async function pollHealth() {
     try {
       await api("/health");
       dot.classList.remove("err"); dot.classList.add("ok");
-      txt.textContent = "Connected";
+      txt.textContent = t("status.connected");
     } catch {
       dot.classList.remove("ok"); dot.classList.add("err");
-      txt.textContent = "Disconnected";
+      txt.textContent = t("status.disconnected");
     }
   }
   await tick();
@@ -881,15 +927,15 @@ function bindAuth() {
     state.apiKey = v;
     localStorage.setItem(KEY_STORAGE, v);
     const status = $("#auth-status");
-    status.textContent = "Checking…";
+    status.textContent = t("auth.checking");
     status.classList.remove("ok");
     const ok = await checkAuth();
     if (ok) {
-      status.textContent = "Welcome aboard.";
+      status.textContent = t("auth.welcome_aboard");
       status.classList.add("ok");
       setTimeout(showShell, 350);
     } else {
-      status.textContent = "That key didn't work. Double-check the prefix sk-orca-…";
+      status.textContent = t("auth.key_invalid");
       localStorage.removeItem(KEY_STORAGE);
       state.apiKey = "";
     }
@@ -907,6 +953,9 @@ function bindAuth() {
    BOOT
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", async () => {
+  state.locale = detectLocale();
+  applyI18n();
+  bindLocalePicker();
   bindAuth();
   bindTabs();
   bindProviderForm();
