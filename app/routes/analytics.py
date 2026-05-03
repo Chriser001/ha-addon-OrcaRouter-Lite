@@ -221,22 +221,34 @@ async def savings_vs_baseline(
 
 def _hosted_auto_savings(rows, catalog: list, catalog_by_id: dict) -> dict:
     """For each request, find the cheapest catalog model that meets the
-    resolved model's capability set, and sum what it would have cost.
+    resolved model's capability set, scoring on the row's ACTUAL token
+    counts.
 
-    Excludes rows whose resolved model isn't in the catalog (can't compare
-    capabilities) and zero-priced catalog entries (likely placeholders).
-    Savings are computed against the actual spend on COMPARABLE rows only —
-    summing non-catalog spend into the baseline would falsely inflate the
+    Cost minimization is per-row, not per-model: an input-heavy request
+    and an output-heavy request with the same `model_resolved` may pick
+    different counterfactual models, since the cheapest model depends on
+    the actual token mix. A fixed input/output blended weight (as used
+    in `auto_routing.choose_auto_model`, which has to decide BEFORE the
+    request runs) under-reports savings here, where we already know
+    exact tokens for every row.
+
+    Excludes rows whose resolved model isn't in the catalog (can't
+    compare capabilities) and zero-priced catalog entries (likely
+    placeholders). Savings are computed against the actual spend on
+    COMPARABLE rows only — non-catalog spend would falsely inflate the
     saved figure shown on the dashboard.
     """
-    cheapest_cache: dict[str, object | None] = {}
+    # Cache the eligible candidate list per resolved model — capability
+    # filtering is the same across rows, only the cost minimization
+    # depends on per-row tokens.
+    candidates_cache: dict[str, list | None] = {}
 
-    def _cheapest_for(actual_id: str):
-        if actual_id in cheapest_cache:
-            return cheapest_cache[actual_id]
+    def _candidates_for(actual_id: str) -> list | None:
+        if actual_id in candidates_cache:
+            return candidates_cache[actual_id]
         actual = catalog_by_id.get(actual_id)
         if actual is None:
-            cheapest_cache[actual_id] = None
+            candidates_cache[actual_id] = None
             return None
         eligible = [
             m for m in catalog
@@ -245,29 +257,24 @@ def _hosted_auto_savings(rows, catalog: list, catalog_by_id: dict) -> dict:
             and (not actual.supports_json_mode or m.supports_json_mode)
             and (m.input_cost_per_token + m.output_cost_per_token) > 0
         ]
-        if not eligible:
-            cheapest_cache[actual_id] = None
-            return None
-        # Same blended cost weighting used by app.auto_routing.choose_auto_model.
-        chosen = min(
-            eligible,
-            key=lambda m: 0.3 * m.input_cost_per_token + 0.7 * m.output_cost_per_token,
-        )
-        cheapest_cache[actual_id] = chosen
-        return chosen
+        candidates_cache[actual_id] = eligible if eligible else None
+        return candidates_cache[actual_id]
 
     hosted_microcents = 0
     actual_comparable_microcents = 0
     counted = 0
     for i, o, c, model_resolved in rows:
-        cheapest = _cheapest_for(model_resolved)
-        if cheapest is None:
+        candidates = _candidates_for(model_resolved)
+        if not candidates:
             continue
-        actual_comparable_microcents += int(c or 0)
-        hosted_microcents += int(
-            (i or 0) * cheapest.input_cost_per_token * 1_000_000
-            + (o or 0) * cheapest.output_cost_per_token * 1_000_000
+        i_v = i or 0
+        o_v = o or 0
+        cheapest_usd = min(
+            i_v * m.input_cost_per_token + o_v * m.output_cost_per_token
+            for m in candidates
         )
+        hosted_microcents += int(cheapest_usd * 1_000_000)
+        actual_comparable_microcents += int(c or 0)
         counted += 1
 
     saved = max(0, actual_comparable_microcents - hosted_microcents)
