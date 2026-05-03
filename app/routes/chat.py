@@ -46,6 +46,7 @@ async def _build_log_row(
     status_code: int,
     error_type: str | None,
     started_perf: float,
+    strategy: str,
 ) -> RequestLog:
     latency_ms = int((time.perf_counter() - started_perf) * 1000)
     meta = response.get("_orca_meta", {})
@@ -57,7 +58,7 @@ async def _build_log_row(
         model_requested=body.model,
         model_resolved=response.get("model", body.model),
         provider=meta.get("provider", "unknown"),
-        routing_strategy="balanced",
+        routing_strategy=strategy,
         input_tokens=usage.get("prompt_tokens", 0),
         output_tokens=usage.get("completion_tokens", 0),
         cost_microcents=0,
@@ -82,6 +83,10 @@ async def chat_completions(
         )
 
     client = await router_cache.get_router(db)
+    raw_strategy = getattr(client, "strategy", None)
+    strategy = raw_strategy if isinstance(raw_strategy, str) and raw_strategy else "balanced"
+    raw_preferred = getattr(client, "preferred_models", None)
+    preferred_models = raw_preferred if isinstance(raw_preferred, list) else []
 
     # Resolve `model="auto"` BEFORE building the request kwargs so the router
     # sees a real model. Capability requirements come from the request body
@@ -104,7 +109,11 @@ async def chat_completions(
                 ),
             )
         chosen = choose_auto_model(
-            needs=needs, deployable=deployable, candidates=CATALOG,
+            needs=needs,
+            deployable=deployable,
+            candidates=CATALOG,
+            strategy=strategy,
+            preferred_models=preferred_models,
         )
         if chosen is None:
             raise HTTPException(
@@ -152,6 +161,7 @@ async def chat_completions(
                 "_orca_meta": {"provider": "cache", "latency_ms": 0},
             },
             status_code=200, error_type=None, started_perf=started_perf,
+            strategy=strategy,
         )
         log.cost_microcents = 0
         db.add(log)
@@ -165,6 +175,7 @@ async def chat_completions(
                 "x-orca-cache": "HIT",
                 "x-orca-resolved-model": resolved_model,
                 "x-orca-requested-model": requested_model,
+                "x-orca-routing-strategy": strategy,
             },
         )
 
@@ -223,6 +234,7 @@ async def chat_completions(
                     body=body, kc=kc, response=synthetic,
                     status_code=status_code, error_type=error_type,
                     started_perf=started_perf,
+                    strategy=strategy,
                 )
                 db.add(log)
                 try:
@@ -238,6 +250,7 @@ async def chat_completions(
                 "X-Accel-Buffering": "no",
                 "x-orca-resolved-model": resolved_model,
                 "x-orca-requested-model": requested_model,
+                "x-orca-routing-strategy": strategy,
             },
         )
 
@@ -259,6 +272,7 @@ async def chat_completions(
             body=body, kc=kc, response=response if isinstance(response, dict) else {},
             status_code=status_code, error_type=error_type,
             started_perf=started_perf,
+            strategy=strategy,
         )
         db.add(log)
         try:
@@ -282,6 +296,7 @@ async def chat_completions(
             "x-orca-cache": cache_status,
             "x-orca-resolved-model": resolved_model,
             "x-orca-requested-model": requested_model,
+            "x-orca-routing-strategy": strategy,
         },
     )
 

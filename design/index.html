@@ -55,14 +55,35 @@
 
     <section id="panel-routing" class="panel">
       <h2>Routing strategy</h2>
+      <p class="muted">
+        Controls two things: which model <code>model="auto"</code> resolves to,
+        and how LiteLLM Router picks between deployments that serve the same
+        model (e.g. local OpenAI key + hosted upstream).
+      </p>
       <select id="routing-strategy">
-        <option value="balanced">balanced</option>
-        <option value="cheapest">cheapest</option>
-        <option value="fastest">fastest</option>
-        <option value="quality">quality</option>
+        <option value="balanced">balanced — simple-shuffle across deployments; cheapest-capable for auto</option>
+        <option value="cheapest">cheapest — cost-based-routing; cheapest-capable for auto</option>
+        <option value="fastest">fastest — latency-based-routing; cheapest-capable for auto</option>
+        <option value="quality">quality — simple-shuffle; most-expensive-capable for auto (proxy for biggest)</option>
       </select>
       <button id="routing-save">Save</button>
       <p id="routing-status"></p>
+      <details class="routing-help">
+        <summary>How each strategy maps to LiteLLM</summary>
+        <table>
+          <thead><tr><th>Strategy</th><th>litellm routing_strategy</th><th>model="auto" picks</th></tr></thead>
+          <tbody>
+            <tr><td>balanced</td><td><code>simple-shuffle</code> (default, RPM/TPM weighted)</td><td>cheapest capable</td></tr>
+            <tr><td>cheapest</td><td><code>cost-based-routing</code></td><td>cheapest capable</td></tr>
+            <tr><td>fastest</td><td><code>latency-based-routing</code></td><td>cheapest capable</td></tr>
+            <tr><td>quality</td><td><code>simple-shuffle</code></td><td>most expensive capable</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          The strategy in effect is echoed back on every response as the
+          <code>x-orca-routing-strategy</code> header.
+        </p>
+      </details>
     </section>
 
     <section id="panel-analytics" class="panel">

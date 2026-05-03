@@ -37,7 +37,19 @@ def _translate_error(exc: Exception) -> UpstreamProviderError:
 class OrcaLiteLLMClient:
     """Wraps a litellm.Router, routes by `model` alias, returns a dict."""
 
-    def __init__(self, deployments: list[ProviderDeployment]):
+    def __init__(
+        self,
+        deployments: list[ProviderDeployment],
+        *,
+        strategy: str | None = None,
+        preferred_models: list[str] | None = None,
+        litellm_routing_strategy: str | None = None,
+    ):
+        # Stash routing config on the instance so chat.py can read it without
+        # re-querying the DB on every request.
+        self.strategy = strategy or "balanced"
+        self.preferred_models = list(preferred_models or [])
+
         # litellm-suppress-debug
         import litellm
         from litellm import Router
@@ -67,11 +79,15 @@ class OrcaLiteLLMClient:
             self._deployments = []
             return
 
-        self._router = Router(
-            model_list=model_list,
-            num_retries=2,
-            timeout=30.0,
-        )
+        router_kwargs: dict = {
+            "model_list": model_list,
+            "num_retries": 2,
+            "timeout": 30.0,
+        }
+        if litellm_routing_strategy:
+            router_kwargs["routing_strategy"] = litellm_routing_strategy
+
+        self._router = Router(**router_kwargs)
         self._deployments = deployments
 
     async def acompletion(self, **kwargs) -> dict:

@@ -86,3 +86,9 @@ code { background: var(--bg); padding: 2px 6px; border-radius: 4px; }
   display: none;
 }
 #new-key-display.shown { display: block; }
+
+p.muted { color: var(--muted); font-size: 13px; margin-top: 0; }
+details.routing-help { margin-top: 16px; color: var(--muted); font-size: 13px; }
+details.routing-help summary { cursor: pointer; }
+details.routing-help table { margin-top: 8px; }
+details.routing-help td, details.routing-help th { font-size: 12px; }
