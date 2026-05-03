@@ -452,12 +452,20 @@ function renderHostedCard() {
     if (providersPill) { providersPill.textContent = "Active"; providersPill.className = "pill ok"; }
     if (providersCard) providersCard.hidden = true;
 
-    // Hosted-active state: source line + extra savings projection
+    // Hosted-active state: source line + extra savings projection.
+    // Three branches: no comparable history yet, additional savings
+    // detected, or already optimal (history exists but routing matches
+    // the cheapest hosted-auto pick on every comparable request).
     const isEnv = state.hosted.source === "env";
     const ha = state.savings.hosted_auto;
-    const haText = (ha && ha.saved_microcents > 0)
-      ? `Up to <strong>${fmtUsd(ha.saved_microcents)}</strong> additional savings detected (${ha.savings_percent}% of current spend) by routing through hosted-auto on the cheapest catalog model per request.`
-      : `No request history yet — once traffic flows, this card will show how much routing through hosted-auto would save.`;
+    let haText;
+    if (!ha || ha.comparable_request_count === 0) {
+      haText = `No comparable request history yet — once traffic flows, this card will show how much routing through hosted-auto would save.`;
+    } else if (ha.saved_microcents > 0) {
+      haText = `Up to <strong>${fmtUsd(ha.saved_microcents)}</strong> additional savings detected (${ha.savings_percent}% of current spend) by routing through hosted-auto on the cheapest catalog model per request.`;
+    } else {
+      haText = `Already optimal — your current routing matches the cheapest hosted-auto pick on every comparable request.`;
+    }
     $("#hosted-active-meta").innerHTML = isEnv
       ? `Active via environment variable (<code>ORCAROUTER_API_KEY</code>). Every catalog model is reachable. To disable, unset the env var and restart.`
       : `Active via dashboard. Every catalog model is reachable.`;
