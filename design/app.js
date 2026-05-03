@@ -462,7 +462,10 @@ function renderHostedCard() {
     if (!ha || ha.comparable_request_count === 0) {
       haText = `No comparable request history yet — once traffic flows, this card will show how much routing through hosted-auto would save.`;
     } else if (ha.saved_microcents > 0) {
-      haText = `Up to <strong>${fmtUsd(ha.saved_microcents)}</strong> additional savings detected (${ha.savings_percent}% of current spend) by routing through hosted-auto on the cheapest catalog model per request.`;
+      // savings_percent is computed against comparable spend only (rows
+      // resolved to a catalog model), not total spend — keep the copy
+      // honest so non-catalog traffic doesn't make the figure misleading.
+      haText = `Up to <strong>${fmtUsd(ha.saved_microcents)}</strong> additional savings detected (${ha.savings_percent}% of comparable-traffic spend) by routing through hosted-auto on the cheapest catalog model per request.`;
     } else {
       haText = `Already optimal — your current routing matches the cheapest hosted-auto pick on every comparable request.`;
     }
