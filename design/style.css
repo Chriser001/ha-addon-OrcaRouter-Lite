@@ -68,6 +68,11 @@
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
+/* The HTML `hidden` attribute must always win over component display rules
+   (e.g. `.palette { display: grid }`), otherwise toggling `el.hidden = true`
+   from JS becomes a no-op and overlays can't be closed. */
+[hidden] { display: none !important; }
+
 /* -------------------------- reset / base ---------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -109,6 +114,19 @@ code {
 }
 
 /* -------------------------- Brand wordmark -------------------------------- */
+.brand-logo-img {
+  display: block;
+  height: 44px;
+  width: auto;
+  max-width: 100%;
+  filter: drop-shadow(0 4px 14px var(--brand-glow));
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.brand-logo-img-sm { height: 32px; }
+
+/* Legacy SVG-based wordmark — kept for any future use */
 .brand-logo {
   display: inline-flex;
   width: 40px;

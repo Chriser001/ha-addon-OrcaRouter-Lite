@@ -793,9 +793,15 @@ function renderPalette(query) {
 
 function bindPalette() {
   $("#open-palette").addEventListener("click", openPalette);
+  $("#palette-close").addEventListener("click", closePalette);
   const input = $("#palette-input");
   input.addEventListener("input", () => { paletteFocus = 0; renderPalette(input.value); });
   input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closePalette();
+      return;
+    }
     const visible = $$("#palette-list .palette-item");
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -817,9 +823,9 @@ function bindPalette() {
       }
     }
   });
-  // click outside closes
+  // click on the backdrop (anywhere outside the card) closes
   $("#palette").addEventListener("click", (e) => {
-    if (e.target === $("#palette")) closePalette();
+    if (!e.target.closest(".palette-card")) closePalette();
   });
 }
 
