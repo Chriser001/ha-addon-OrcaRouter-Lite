@@ -145,3 +145,6 @@ def create_app() -> FastAPI:
             return RedirectResponse("/health")
 
     return app
+
+
+app = create_app()
