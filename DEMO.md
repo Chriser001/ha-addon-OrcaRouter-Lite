@@ -5,7 +5,7 @@ Three scripts, two terminals, one screen recording.
 ## Setup (~2 minutes)
 
 ```bash
-cd orcarouter-lite
+cd OrcaRouter-Lite
 cp .env.example .env
 
 # Configure BOTH providers so failover has somewhere to go.
