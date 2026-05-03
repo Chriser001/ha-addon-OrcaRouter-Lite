@@ -146,3 +146,98 @@ def test_choose_model_uses_blended_input_plus_output_cost():
         needs=set(), deployable={"a", "b"}, candidates=candidates
     )
     assert chosen == "a"
+
+
+# ── strategy-aware selection ────────────────────────────────────────────
+
+def test_choose_model_quality_strategy_picks_most_expensive():
+    """`quality` is the inverse of `cheapest` — biggest as a proxy for best."""
+    from app.auto_routing import choose_auto_model
+    from packages.litellm_adapter.catalog import CatalogModel
+
+    candidates = [
+        CatalogModel("cheap", "openai", "openai/", True, False, False, 1e-7, 4e-7),
+        CatalogModel("medium", "openai", "openai/", True, False, False, 1e-6, 3e-6),
+        CatalogModel("expensive", "openai", "openai/", True, False, False, 1e-5, 3e-5),
+    ]
+    chosen = choose_auto_model(
+        needs=set(),
+        deployable={"cheap", "medium", "expensive"},
+        candidates=candidates,
+        strategy="quality",
+    )
+    assert chosen == "expensive"
+
+
+def test_choose_model_cheapest_strategy_matches_default():
+    from app.auto_routing import choose_auto_model
+    from packages.litellm_adapter.catalog import CatalogModel
+
+    candidates = [
+        CatalogModel("cheap", "openai", "openai/", True, False, False, 1e-7, 4e-7),
+        CatalogModel("expensive", "openai", "openai/", True, False, False, 1e-5, 3e-5),
+    ]
+    chosen = choose_auto_model(
+        needs=set(),
+        deployable={"cheap", "expensive"},
+        candidates=candidates,
+        strategy="cheapest",
+    )
+    assert chosen == "cheap"
+
+
+def test_choose_model_preferred_models_narrows_eligible_set():
+    """When `preferred_models` is set and any are eligible, restrict to them."""
+    from app.auto_routing import choose_auto_model
+    from packages.litellm_adapter.catalog import CatalogModel
+
+    candidates = [
+        CatalogModel("cheap-not-preferred", "openai", "openai/", True, False, False, 1e-8, 1e-8),
+        CatalogModel("preferred-mid", "openai", "openai/", True, False, False, 1e-6, 3e-6),
+        CatalogModel("preferred-big", "openai", "openai/", True, False, False, 1e-5, 3e-5),
+    ]
+    chosen = choose_auto_model(
+        needs=set(),
+        deployable={"cheap-not-preferred", "preferred-mid", "preferred-big"},
+        candidates=candidates,
+        strategy="cheapest",
+        preferred_models=["preferred-mid", "preferred-big"],
+    )
+    assert chosen == "preferred-mid"  # cheapest within the preferred set
+
+
+def test_choose_model_preferred_models_falls_back_when_none_eligible():
+    """If preferred_models has no eligible entries, ignore the filter."""
+    from app.auto_routing import choose_auto_model
+    from packages.litellm_adapter.catalog import CatalogModel
+
+    candidates = [
+        CatalogModel("cheap", "openai", "openai/", True, False, False, 1e-7, 4e-7),
+    ]
+    chosen = choose_auto_model(
+        needs=set(),
+        deployable={"cheap"},
+        candidates=candidates,
+        preferred_models=["does-not-exist", "neither-does-this"],
+    )
+    assert chosen == "cheap"
+
+
+# ── litellm strategy mapping ────────────────────────────────────────────
+
+def test_litellm_routing_strategy_maps_known_values():
+    from app.auto_routing import litellm_routing_strategy
+
+    assert litellm_routing_strategy("cheapest") == "cost-based-routing"
+    assert litellm_routing_strategy("fastest") == "latency-based-routing"
+    # `balanced` and `quality` use litellm's default (no override)
+    assert litellm_routing_strategy("balanced") is None
+    assert litellm_routing_strategy("quality") is None
+
+
+def test_litellm_routing_strategy_returns_none_for_unknown_or_empty():
+    from app.auto_routing import litellm_routing_strategy
+
+    assert litellm_routing_strategy(None) is None
+    assert litellm_routing_strategy("") is None
+    assert litellm_routing_strategy("not-a-real-strategy") is None

@@ -1,14 +1,16 @@
-"""`model="auto"` — pick the cheapest catalog model that meets the request's
-capability requirements AND has a deployable provider configured.
+"""`model="auto"` — pick a catalog model that meets the request's capability
+requirements AND has a deployable provider configured. Selection rule depends
+on the active routing strategy.
 
 Two pure functions:
   - `required_capabilities(body)`  → set of {"tools", "vision", "json_mode"}
-  - `choose_auto_model(needs, deployable, candidates)` → model_id | None
+  - `choose_auto_model(needs, deployable, candidates, strategy, preferred_models)`
+    → model_id | None
 
 The chat handler resolves `model="auto"` by:
   1. computing needs = required_capabilities(request_body)
   2. computing deployable = {dep.model_name for dep in active_deployments}
-  3. calling choose_auto_model(needs, deployable, CATALOG)
+  3. calling choose_auto_model(...)
   4. swapping the resolved id into the request before calling the router
 
 Adapted from `apps/api/routes/chat.py:_required_capabilities` /
@@ -32,6 +34,25 @@ _CAP_FIELD = {
 # as `apps/api/router_cache.py:_provider_order_key`.
 _INPUT_WEIGHT = 0.3
 _OUTPUT_WEIGHT = 0.7
+
+
+# Map our user-facing strategy names to litellm.Router's `routing_strategy`.
+# `balanced` and `quality` use litellm's default (simple-shuffle, weighted by
+# RPM/TPM) — strategy intent is realised in `choose_auto_model` for `quality`,
+# and is a no-op for `balanced`. `None` means "don't pass routing_strategy".
+STRATEGY_TO_LITELLM: dict[str, str | None] = {
+    "balanced": None,
+    "cheapest": "cost-based-routing",
+    "fastest": "latency-based-routing",
+    "quality": None,
+}
+
+
+def litellm_routing_strategy(strategy: str | None) -> str | None:
+    """Return the litellm `routing_strategy` for a UI strategy, or None."""
+    if not strategy:
+        return None
+    return STRATEGY_TO_LITELLM.get(strategy)
 
 
 def _has_vision_content(messages: list[dict]) -> bool:
@@ -89,8 +110,21 @@ def choose_auto_model(
     needs: set[str],
     deployable: set[str],
     candidates: Iterable[CatalogModel],
+    strategy: str | None = None,
+    preferred_models: list[str] | None = None,
 ) -> str | None:
-    """Return the cheapest deployable model matching all `needs`, or None.
+    """Return a deployable model matching all `needs`, or None.
+
+    Selection rule by strategy:
+      - `quality`: highest blended cost (proxy for "biggest/most-capable")
+      - everything else (`cheapest` / `balanced` / `fastest` / None): lowest
+        blended cost. `fastest` shares the cheapest-capable rule because the
+        catalog has no per-model latency data; ordering across deployments of
+        the same model is handled by litellm's `latency-based-routing`.
+
+    If `preferred_models` is non-empty AND at least one entry is deployable
+    + capability-matching, the eligible set is restricted to that list. This
+    lets users pin a quality tier without giving up auto resolution.
 
     Excludes models with zero blended cost — those are unpriced entries in
     litellm's catalogue, not actually free, and routing to them would skew
@@ -102,7 +136,15 @@ def choose_auto_model(
         and _model_meets(m, needs)
         and _blended_cost(m) > 0
     ]
+    if preferred_models:
+        preferred_set = set(preferred_models)
+        narrowed = [m for m in eligible if m.id in preferred_set]
+        if narrowed:
+            eligible = narrowed
     if not eligible:
         return None
-    eligible.sort(key=lambda m: (_blended_cost(m), m.id))
+    if strategy == "quality":
+        eligible.sort(key=lambda m: (-_blended_cost(m), m.id))
+    else:
+        eligible.sort(key=lambda m: (_blended_cost(m), m.id))
     return eligible[0].id

@@ -141,6 +141,39 @@ async def test_auto_response_reports_resolved_model_to_caller(auto_client):
     assert r.headers.get("x-orca-resolved-model") == captured["model"]
 
 
+async def test_auto_with_quality_strategy_picks_different_model_than_cheapest(auto_client, monkeypatch):
+    """`quality` flips the auto resolver from cheapest- to most-expensive-capable."""
+    client, captured = auto_client
+
+    from app import router_cache
+
+    # The fixture installs a fresh AsyncMock as the router; pin strategy on it.
+    fake_router = await router_cache.get_router(None)  # returns the mocked fake
+    fake_router.strategy = "cheapest"
+    fake_router.preferred_models = []
+
+    r1 = await client.post(
+        "/v1/chat/completions",
+        json={"model": "auto", "messages": [{"role": "user", "content": "hi"}]},
+    )
+    assert r1.status_code == 200
+    cheapest_pick = captured["model"]
+    assert r1.headers.get("x-orca-routing-strategy") == "cheapest"
+
+    fake_router.strategy = "quality"
+
+    r2 = await client.post(
+        "/v1/chat/completions",
+        json={"model": "auto", "messages": [{"role": "user", "content": "hi"}]},
+    )
+    assert r2.status_code == 200
+    quality_pick = captured["model"]
+    assert r2.headers.get("x-orca-routing-strategy") == "quality"
+
+    # cheapest and quality should pick different ends of the OpenAI catalog.
+    assert cheapest_pick != quality_pick
+
+
 async def test_auto_returns_422_when_no_capable_model_is_deployable(tmp_sqlite_url, monkeypatch):
     """If no provider keys cover the required capabilities, surface a clear 422."""
     monkeypatch.setenv("DATABASE_URL", tmp_sqlite_url)
