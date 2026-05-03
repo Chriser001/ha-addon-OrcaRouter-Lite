@@ -14,8 +14,8 @@ OrcaRouter Lite is the open-source single-workspace edition of [OrcaRouter](http
 ## 60-second quickstart
 
 ```bash
-git clone https://github.com/Continuum-AI-Corp/OrcaRouter.git
-cd OrcaRouter/orcarouter-lite
+git clone https://github.com/Continuum-AI-Corp/OrcaRouter-Lite.git
+cd OrcaRouter-Lite
 cp .env.example .env
 # add at least one: OPENAI_API_KEY=sk-...  (or ORCAROUTER_API_KEY=...)
 
@@ -150,7 +150,7 @@ for chunk in client.chat.completions.create(
 |---|---|
 | Railway | [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template) |
 | Fly.io | `fly launch --dockerfile Dockerfile` |
-| Render | Connect repo, root dir = `orcarouter-lite` |
+| Render | Connect repo, root dir = `.` |
 | Bare Docker | `docker run -p 8000:8000 -e OPENAI_API_KEY=... ghcr.io/...` (image coming soon) |
 
 ## What's in the box
