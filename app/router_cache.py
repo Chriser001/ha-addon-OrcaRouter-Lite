@@ -93,16 +93,40 @@ def hosted_key_source(
 ) -> str | None:
     """Return where the hosted upstream key came from, or None if unconfigured.
 
-    Mirrors the precedence used by `build_deployments`: a DB row beats env.
-    Used by `/v1/hosted` to tell the dashboard whether to show the CTA or
-    the "active" pill.
+    Mirrors the precedence used by `build_deployments`: a DB row beats env,
+    BUT only if the row's encrypted_key actually decrypts. A row whose
+    ciphertext is corrupt (post-rotation, DB tampering) is silently dropped
+    by `build_deployments`, so reporting it as "configured" here would tell
+    the dashboard "Active" while requests still 503 on hosted models.
     """
-    for row in db_keys:
-        if row.provider == HOSTED_PROVIDER_NAME and row.is_enabled and not row.is_deleted:
-            return "dashboard"
+    if HOSTED_PROVIDER_NAME in usable_providers_from_db(db_keys):
+        return "dashboard"
     if env_key:
         return "env"
     return None
+
+
+def usable_providers_from_db(db_keys: list["ProviderKey"]) -> set[str]:
+    """Set of provider names whose DB-stored key actually decrypts.
+
+    Single source of truth for "is this provider deployable from a DB row?"
+    Used by `hosted_key_source` and `/v1/analytics/unreachable` so the
+    dashboard's "configured providers" view stays in lockstep with what
+    `build_deployments` will actually wire up. Without this, an
+    undecryptable row (after `CREDENTIAL_ENCRYPTION_KEY` rotation) would
+    falsely suppress models from the unreachable list while the router
+    can't reach them either.
+    """
+    out: set[str] = set()
+    for row in db_keys:
+        if not row.is_enabled or row.is_deleted:
+            continue
+        try:
+            decrypt_credential(row.encrypted_key)
+        except Exception:
+            continue
+        out.add(row.provider)
+    return out
 
 
 # ── Cached router instance ────────────────────────────────────────────────

@@ -223,3 +223,54 @@ def test_hosted_key_source_reports_origin(monkeypatch):
     assert hosted_key_source(env_key=None, db_keys=[db_row]) == "dashboard"
     # DB beats env in the precedence reporting too
     assert hosted_key_source(env_key="sk-orca-x", db_keys=[db_row]) == "dashboard"
+
+
+def test_hosted_key_source_treats_undecryptable_db_row_as_unconfigured():
+    """A DB row whose ciphertext can't be decrypted (e.g. after encryption-
+    key rotation or DB corruption) is functionally unusable —
+    build_deployments silently drops it and never creates hosted
+    deployments. hosted_key_source must report the same view, otherwise
+    /v1/hosted lies about coverage and the dashboard shows "Active" while
+    requests fail."""
+    from app.router_cache import hosted_key_source
+    from packages.db.models.provider_key import ProviderKey
+
+    corrupt = ProviderKey(
+        provider="orcarouter",
+        encrypted_key=b"too-short-to-be-valid-aesgcm",
+        key_prefix="sk-orca-...",
+        label="default",
+        is_enabled=True,
+    )
+    # No env, only a corrupt DB row → unconfigured.
+    assert hosted_key_source(env_key=None, db_keys=[corrupt]) is None
+    # Env still wins as fallback when the DB row can't be decrypted.
+    assert hosted_key_source(env_key="sk-orca-env", db_keys=[corrupt]) == "env"
+
+
+def test_usable_providers_from_db_skips_undecryptable_rows():
+    """Helper that mirrors build_deployments' decryption filter so callers
+    reporting 'configured providers' (e.g. /v1/analytics/unreachable) can't
+    drift from what the router actually deploys."""
+    from app.router_cache import usable_providers_from_db
+    from packages.auth.encryption import encrypt_credential
+    from packages.db.models.provider_key import ProviderKey
+
+    rows = [
+        ProviderKey(
+            provider="openai",
+            encrypted_key=encrypt_credential("sk-good"),
+            key_prefix="sk-...", label="default", is_enabled=True,
+        ),
+        ProviderKey(
+            provider="anthropic",
+            encrypted_key=b"corrupt-blob-cant-decrypt",
+            key_prefix="sk-ant-...", label="default", is_enabled=True,
+        ),
+        ProviderKey(
+            provider="google",
+            encrypted_key=encrypt_credential("sk-disabled"),
+            key_prefix="sk-...", label="default", is_enabled=False,
+        ),
+    ]
+    assert usable_providers_from_db(rows) == {"openai"}

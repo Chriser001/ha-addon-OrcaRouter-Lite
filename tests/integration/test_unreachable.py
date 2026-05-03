@@ -124,6 +124,66 @@ async def test_unreachable_respects_limit(fresh_client):
     assert len(body["unreachable"]) <= 3
 
 
+async def test_unreachable_excludes_undecryptable_provider_keys(tmp_sqlite_url, monkeypatch):
+    """Codex P2: an enabled DB row with a corrupt encrypted_key isn't
+    actually deployable (build_deployments drops it). The unreachable
+    endpoint must not silently treat that provider as 'covered' — those
+    models really are unreachable until the key is fixed."""
+    monkeypatch.setenv("DATABASE_URL", tmp_sqlite_url)
+    from app import config as cfg
+    cfg.get_settings.cache_clear()
+
+    from packages.db.engine import build_engine
+    from packages.db.models.base import Base
+
+    engine = build_engine(tmp_sqlite_url)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from packages.db import session as session_mod
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    session_mod._session_factory = factory
+
+    from app.seed import seed_initial_state
+    async with factory() as s:
+        seed = await seed_initial_state(s)
+
+    # Inject a corrupt anthropic row — would falsely suppress claude-* from
+    # the unreachable list if the endpoint trusts is_enabled blindly.
+    from packages.db.models.provider_key import ProviderKey
+    async with factory() as s:
+        s.add(ProviderKey(
+            provider="anthropic",
+            encrypted_key=b"corrupt-not-valid-aesgcm",
+            key_prefix="sk-ant-...",
+            label="default",
+            is_enabled=True,
+        ))
+        await s.commit()
+
+    from app.main import create_app
+    app = create_app()
+    from httpx import ASGITransport, AsyncClient
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://t",
+        headers={"Authorization": f"Bearer {seed.api_key}"},
+    ) as c:
+        r = await c.get("/v1/analytics/unreachable")
+        body = r.json()
+        assert "anthropic" not in body["configured_providers"], (
+            "An undecryptable DB row must not be reported as a configured "
+            "provider — build_deployments can't deploy it"
+        )
+        providers_in_list = {m["provider"] for m in body["unreachable"]}
+        assert "anthropic" in providers_in_list
+
+    await engine.dispose()
+    session_mod._session_factory = None
+
+
 async def test_unreachable_counts_env_provider_keys(tmp_sqlite_url, monkeypatch):
     """Env-set OPENAI_API_KEY counts as 'configured' — a Docker user with
     only env vars shouldn't see openai models in the unreachable tile."""

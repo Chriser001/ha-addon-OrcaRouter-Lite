@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.deps import get_db, get_key_context
-from app.router_cache import HOSTED_PROVIDER_NAME, hosted_key_source
+from app.router_cache import HOSTED_PROVIDER_NAME, hosted_key_source, usable_providers_from_db
 from packages.auth.types import KeyContext
 from packages.db.models.provider_key import ProviderKey
 from packages.db.models.request_log import RequestLog
@@ -314,10 +314,13 @@ async def unreachable_models(
         env_key=settings.orcarouter_api_key,
         db_keys=list(rows),
     )
-    configured_providers: set[str] = set()
-    for r in rows:
-        if r.is_enabled and r.provider != HOSTED_PROVIDER_NAME:
-            configured_providers.add(r.provider)
+    # Filter DB-set providers through the same decrypt check build_deployments
+    # uses, so a corrupt encrypted_key doesn't falsely suppress models from
+    # the unreachable list while the router still can't reach them.
+    configured_providers: set[str] = {
+        p for p in usable_providers_from_db(list(rows))
+        if p != HOSTED_PROVIDER_NAME
+    }
     for provider, key in settings.env_provider_keys().items():
         if key:
             configured_providers.add(provider)
