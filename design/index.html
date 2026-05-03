@@ -3,92 +3,573 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OrcaRouter Lite</title>
+  <meta name="theme-color" content="#ffffff">
+  <title>OrcaRouter Lite — Self-hosted LLM router</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%232D7FF9'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='white' font-family='-apple-system'>O</text></svg>">
 </head>
 <body>
-  <header>
-    <h1>OrcaRouter Lite</h1>
-    <p class="tagline">Self-hosted LLM router with a managed safety net.</p>
-  </header>
+  <!-- ─────────────────────── Auth gate ─────────────────────── -->
+  <div id="auth-gate" class="auth-gate">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="orcaG" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#5BA8FF"/>
+                <stop offset="100%" stop-color="#1B5FCC"/>
+              </linearGradient>
+            </defs>
+            <path d="M14 22 C 14 14, 24 8, 36 10 C 48 12, 56 22, 54 34 C 52 46, 40 52, 30 50 C 22 48, 18 42, 16 38 L 8 42 L 12 32 L 8 24 Z" fill="url(#orcaG)"/>
+            <path d="M30 28 C 30 24, 36 22, 42 24 C 48 26, 50 32, 48 38 C 46 44, 38 46, 32 44 C 28 42, 28 36, 30 28 Z" fill="white"/>
+            <circle cx="38" cy="26" r="2" fill="#0A0F1C"/>
+          </svg>
+        </span>
+        <div class="brand-wordmark">
+          <span class="brand-orca">Orca</span><span class="brand-router">Router</span>
+          <span class="brand-pill">Lite</span>
+        </div>
+      </div>
+      <p class="auth-tagline">Open Source. Single Tenant.</p>
 
-  <section id="auth-gate" class="card">
-    <h2>API key required</h2>
-    <p>
-      Paste the <code>sk-orca-*</code> key printed in the server logs on first
-      run. It's stored only in your browser's localStorage.
-    </p>
-    <input id="api-key-input" type="password" placeholder="sk-orca-...">
-    <button id="api-key-save">Save key</button>
-    <p id="auth-status"></p>
-  </section>
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-sub">
+        Paste the <code>sk-orca-*</code> key printed in your server logs on first run.
+        Stored only in this browser via <code>localStorage</code>.
+      </p>
 
-  <nav id="tabs" hidden>
-    <button data-tab="providers" class="active">Providers</button>
-    <button data-tab="routing">Routing</button>
-    <button data-tab="analytics">Analytics</button>
-    <button data-tab="keys">API keys</button>
-  </nav>
-
-  <main id="panels" hidden>
-    <section id="panel-providers" class="panel active">
-      <h2>Provider keys</h2>
-      <p>BYOK. Keys are encrypted at rest. Env vars override DB rows for the same provider.</p>
-      <form id="provider-form">
-        <select id="provider-name">
-          <option value="openai">openai</option>
-          <option value="anthropic">anthropic</option>
-          <option value="google">google</option>
-          <option value="groq">groq</option>
-          <option value="together">together</option>
-          <option value="fireworks">fireworks</option>
-          <option value="orcarouter">orcarouter (hosted upstream)</option>
-        </select>
-        <input id="provider-key" type="password" placeholder="sk-...">
-        <button type="submit">Save</button>
+      <form id="auth-form" class="auth-form" autocomplete="off">
+        <label class="field">
+          <span class="field-label">API key</span>
+          <div class="field-control">
+            <input
+              id="api-key-input"
+              type="password"
+              placeholder="sk-orca-..."
+              autocomplete="off"
+              spellcheck="false"
+              required>
+            <button type="button" class="icon-btn" id="api-key-toggle" title="Show / hide" aria-label="Show or hide key">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </label>
+        <button type="submit" class="btn btn-primary btn-full" id="api-key-save">
+          <span>Continue</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+        <p id="auth-status" class="auth-status" aria-live="polite"></p>
       </form>
-      <table id="providers-table">
-        <thead><tr><th>Provider</th><th>Prefix</th><th>Enabled</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </section>
 
-    <section id="panel-routing" class="panel">
-      <h2>Routing strategy</h2>
-      <select id="routing-strategy">
-        <option value="balanced">balanced</option>
-        <option value="cheapest">cheapest</option>
-        <option value="fastest">fastest</option>
-        <option value="quality">quality</option>
-      </select>
-      <button id="routing-save">Save</button>
-      <p id="routing-status"></p>
-    </section>
+      <details class="auth-help">
+        <summary>Where do I find my key?</summary>
+        <ol>
+          <li>Run <code>docker compose up</code> (or <code>uvicorn app.main:app</code>).</li>
+          <li>On first start, the server prints:<br>
+            <code class="code-block">✓ orcarouter-lite ready. API key: sk-orca-...</code>
+          </li>
+          <li>Copy that string and paste it above.</li>
+        </ol>
+        <p class="muted">
+          Lost it? Reset the workspace by deleting <code>orcarouter.db</code>
+          (and any <code>data/</code> volume) and restarting.
+        </p>
+      </details>
+    </div>
+  </div>
 
-    <section id="panel-analytics" class="panel">
-      <h2>Recent requests</h2>
-      <p id="spend-summary"></p>
-      <table id="recent-table">
-        <thead>
-          <tr><th>When</th><th>Model</th><th>Provider</th><th>In/Out</th><th>Latency</th><th>Status</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
+  <!-- ─────────────────────── Main shell ─────────────────────── -->
+  <div id="app-shell" class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-logo brand-logo-sm" aria-hidden="true">
+          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="orcaG2" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#5BA8FF"/>
+                <stop offset="100%" stop-color="#1B5FCC"/>
+              </linearGradient>
+            </defs>
+            <path d="M14 22 C 14 14, 24 8, 36 10 C 48 12, 56 22, 54 34 C 52 46, 40 52, 30 50 C 22 48, 18 42, 16 38 L 8 42 L 12 32 L 8 24 Z" fill="url(#orcaG2)"/>
+            <path d="M30 28 C 30 24, 36 22, 42 24 C 48 26, 50 32, 48 38 C 46 44, 38 46, 32 44 C 28 42, 28 36, 30 28 Z" fill="white"/>
+            <circle cx="38" cy="26" r="2" fill="#0A0F1C"/>
+          </svg>
+        </span>
+        <div class="brand-wordmark brand-wordmark-sm">
+          <span class="brand-orca">Orca</span><span class="brand-router">Router</span>
+          <span class="brand-pill">Lite</span>
+        </div>
+      </div>
 
-    <section id="panel-keys" class="panel">
-      <h2>API keys</h2>
-      <form id="key-form">
-        <input id="key-name" type="text" placeholder="Key name (e.g. ci-runner)">
-        <button type="submit">Create key</button>
-      </form>
-      <p id="new-key-display"></p>
-      <table id="keys-table">
-        <thead><tr><th>Name</th><th>Prefix</th><th>Active</th><th>Last used</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </section>
-  </main>
+      <nav class="sidebar-nav" id="tabs">
+        <button data-tab="overview" class="nav-item active" data-shortcut="1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span>Overview</span>
+          <kbd>1</kbd>
+        </button>
+        <button data-tab="providers" class="nav-item" data-shortcut="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="14"/><line x1="10" y1="10" x2="10" y2="14"/></svg>
+          <span>Providers</span>
+          <kbd>2</kbd>
+        </button>
+        <button data-tab="routing" class="nav-item" data-shortcut="3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M9 6h6M6 9v6a3 3 0 0 0 3 3h6"/></svg>
+          <span>Routing</span>
+          <kbd>3</kbd>
+        </button>
+        <button data-tab="analytics" class="nav-item" data-shortcut="4">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+          <span>Analytics</span>
+          <kbd>4</kbd>
+        </button>
+        <button data-tab="keys" class="nav-item" data-shortcut="5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="14" r="4"/><path d="M11 11l9-9M16 6l3 3M14 8l3 3"/></svg>
+          <span>API keys</span>
+          <kbd>5</kbd>
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <button class="nav-item ghost" id="open-help" title="Open help (?)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Help &amp; docs</span>
+          <kbd>?</kbd>
+        </button>
+        <button class="nav-item ghost" id="open-palette" title="Command palette (⌘K)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span>Search</span>
+          <kbd>⌘K</kbd>
+        </button>
+        <div class="sidebar-meta">
+          <span class="status-dot" id="health-dot"></span>
+          <span id="health-text">Connecting…</span>
+          <span class="version-tag" id="version-tag">v0.1.0</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title" id="page-title">Overview</h1>
+          <p class="page-sub" id="page-sub">Your single-tenant LLM router at a glance.</p>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-ghost" id="copy-base-url" data-tooltip="Copy your base URL">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <code id="base-url-code">http://localhost:8000/v1</code>
+          </button>
+          <button class="btn btn-ghost" id="logout-btn" data-tooltip="Forget API key (this device)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Sign out</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="panels">
+        <!-- ─────────────── Overview ─────────────── -->
+        <section id="panel-overview" class="panel active">
+          <div class="kpi-grid">
+            <article class="kpi-card" data-tooltip="Sum of all upstream costs over the last 7 days">
+              <div class="kpi-head">
+                <span class="kpi-label">Spend (7d)</span>
+                <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div class="kpi-value" id="kpi-spend">$—</div>
+              <div class="kpi-sub" id="kpi-spend-sub">across 0 requests</div>
+            </article>
+            <article class="kpi-card kpi-card-accent" data-tooltip="Estimated savings vs baseline GPT-4o for the same traffic">
+              <div class="kpi-head">
+                <span class="kpi-label">Saved vs GPT-4o</span>
+                <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="kpi-value" id="kpi-saved">$—</div>
+              <div class="kpi-sub" id="kpi-saved-sub">— smarter routing</div>
+            </article>
+            <article class="kpi-card" data-tooltip="Median latency across all upstream calls in the last 7 days">
+              <div class="kpi-head">
+                <span class="kpi-label">p50 latency</span>
+                <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="kpi-value" id="kpi-p50">— ms</div>
+              <div class="kpi-sub" id="kpi-p99">p99 — ms</div>
+            </article>
+            <article class="kpi-card" data-tooltip="Models discovered from your configured provider keys + the catalog">
+              <div class="kpi-head">
+                <span class="kpi-label">Models available</span>
+                <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              </div>
+              <div class="kpi-value" id="kpi-models">—</div>
+              <div class="kpi-sub" id="kpi-providers">— providers configured</div>
+            </article>
+          </div>
+
+          <div class="row-2">
+            <article class="card">
+              <header class="card-head">
+                <div>
+                  <h2 class="card-title">Quick start</h2>
+                  <p class="card-sub">You're up — point any OpenAI SDK at your base URL.</p>
+                </div>
+                <div class="seg" id="lang-seg">
+                  <button class="seg-btn active" data-lang="python">Python</button>
+                  <button class="seg-btn" data-lang="node">Node</button>
+                  <button class="seg-btn" data-lang="curl">curl</button>
+                </div>
+              </header>
+              <pre class="code-pre"><code id="quickstart-code">loading…</code><button class="copy-btn" id="copy-snippet" data-tooltip="Copy snippet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></pre>
+              <p class="hint">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Use <code>model="auto"</code> to let the router pick the cheapest capable model.
+              </p>
+            </article>
+
+            <article class="card">
+              <header class="card-head">
+                <div>
+                  <h2 class="card-title">Recent activity</h2>
+                  <p class="card-sub">Last 5 requests routed through this server.</p>
+                </div>
+                <button class="btn btn-ghost btn-sm" data-go-tab="analytics">View all</button>
+              </header>
+              <div id="overview-recent" class="recent-mini">
+                <div class="empty-mini">
+                  <p>No requests yet.</p>
+                  <p class="muted">Once you send your first <code>chat.completions</code> call, it'll show up here.</p>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <article class="card help-banner" id="getting-started">
+            <div>
+              <h3>New here? Get fully set up in 2 minutes</h3>
+              <ol class="checklist">
+                <li id="step-1"><span class="check"></span>Add at least one <a href="#" data-go-tab="providers">provider key</a></li>
+                <li id="step-2"><span class="check"></span>Pick a <a href="#" data-go-tab="routing">routing strategy</a></li>
+                <li id="step-3"><span class="check"></span>Send your first request (it'll appear in <a href="#" data-go-tab="analytics">analytics</a>)</li>
+              </ol>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="dismiss-getting-started" aria-label="Dismiss">×</button>
+          </article>
+        </section>
+
+        <!-- ─────────────── Providers ─────────────── -->
+        <section id="panel-providers" class="panel">
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title">Provider keys <span class="pill">BYOK</span></h2>
+                <p class="card-sub">
+                  Encrypted at rest with AES-256-GCM. Env vars override DB rows for the same provider.
+                </p>
+              </div>
+            </header>
+
+            <div class="provider-quickadd" id="provider-quickadd"></div>
+
+            <form id="provider-form" class="inline-form">
+              <label class="field flex-grow-0">
+                <span class="field-label">Provider</span>
+                <select id="provider-name">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="google">Google</option>
+                  <option value="groq">Groq</option>
+                  <option value="together">Together</option>
+                  <option value="fireworks">Fireworks</option>
+                  <option value="orcarouter">OrcaRouter (hosted upstream)</option>
+                </select>
+              </label>
+              <label class="field flex-grow">
+                <span class="field-label">API key</span>
+                <input id="provider-key" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+              </label>
+              <button type="submit" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Save key
+              </button>
+            </form>
+
+            <div class="table-wrap" id="providers-table-wrap">
+              <table id="providers-table">
+                <thead><tr>
+                  <th>Provider</th>
+                  <th>Prefix</th>
+                  <th>Status</th>
+                  <th class="th-actions"></th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+              <div class="empty-state" id="providers-empty">
+                <div class="empty-illustration">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="14"/><line x1="10" y1="10" x2="10" y2="14"/></svg>
+                </div>
+                <h3>No provider keys yet</h3>
+                <p>Add at least one to start routing real traffic. Pick a provider above or click a quick-add chip.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ─────────────── Routing ─────────────── -->
+        <section id="panel-routing" class="panel">
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title">Routing strategy</h2>
+                <p class="card-sub">
+                  How the router picks between candidate models when you send <code>model="auto"</code>.
+                </p>
+              </div>
+            </header>
+
+            <div class="strategy-grid" id="strategy-grid">
+              <label class="strategy-card" data-value="balanced">
+                <input type="radio" name="strategy" value="balanced">
+                <div class="strategy-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20"/></svg>
+                </div>
+                <div class="strategy-title">Balanced</div>
+                <p class="strategy-desc">Mix cost, latency &amp; quality. The sane default for most teams.</p>
+                <span class="strategy-badge">Recommended</span>
+              </label>
+              <label class="strategy-card" data-value="cheapest">
+                <input type="radio" name="strategy" value="cheapest">
+                <div class="strategy-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div class="strategy-title">Cheapest</div>
+                <p class="strategy-desc">Lowest per-token cost that still meets the request's capabilities.</p>
+              </label>
+              <label class="strategy-card" data-value="fastest">
+                <input type="radio" name="strategy" value="fastest">
+                <div class="strategy-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <div class="strategy-title">Fastest</div>
+                <p class="strategy-desc">Lowest p50 latency from recent traffic. Great for chat UIs.</p>
+              </label>
+              <label class="strategy-card" data-value="quality">
+                <input type="radio" name="strategy" value="quality">
+                <div class="strategy-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <div class="strategy-title">Quality</div>
+                <p class="strategy-desc">Prefers frontier models. Best for hard reasoning tasks.</p>
+              </label>
+            </div>
+
+            <p class="hint" id="routing-status">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Pick a card to switch strategy. Saved automatically.
+            </p>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title">How <code>model="auto"</code> works</h2>
+                <p class="card-sub">Three filters, applied in order.</p>
+              </div>
+            </header>
+            <ol class="how-list">
+              <li>
+                <strong>Capability filter.</strong>
+                The router inspects your request — is there an image? a tool definition? <code>response_format=json</code>? — and drops models that can't handle it.
+              </li>
+              <li>
+                <strong>Provider filter.</strong>
+                Only models whose provider you've configured (or that hosted upstream covers) survive.
+              </li>
+              <li>
+                <strong>Strategy ranking.</strong>
+                The remaining candidates are scored by your chosen strategy above. The winner is called.
+              </li>
+            </ol>
+            <p class="hint">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              The chosen model comes back to your client in the <code>x-orca-resolved-model</code> response header.
+            </p>
+          </article>
+        </section>
+
+        <!-- ─────────────── Analytics ─────────────── -->
+        <section id="panel-analytics" class="panel">
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title">Spend by model</h2>
+                <p class="card-sub" id="spend-summary">—</p>
+              </div>
+              <div class="seg" id="window-seg">
+                <button class="seg-btn" data-days="1">24h</button>
+                <button class="seg-btn active" data-days="7">7d</button>
+                <button class="seg-btn" data-days="30">30d</button>
+              </div>
+            </header>
+            <div class="bar-chart" id="bar-chart"></div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title">Latency by provider</h2>
+                <p class="card-sub">p50 and p99 — sourced from local request logs.</p>
+              </div>
+            </header>
+            <div class="table-wrap">
+              <table id="latency-table">
+                <thead><tr>
+                  <th>Provider</th>
+                  <th>Requests</th>
+                  <th>p50</th>
+                  <th>p99</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title">Recent requests</h2>
+                <p class="card-sub">Newest first. Click a row to copy its trace ID.</p>
+              </div>
+            </header>
+            <div class="table-wrap">
+              <table id="recent-table">
+                <thead><tr>
+                  <th>When</th>
+                  <th>Model</th>
+                  <th>Provider</th>
+                  <th>Tokens (in / out)</th>
+                  <th>Latency</th>
+                  <th>Status</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+              <div class="empty-state" id="recent-empty" hidden>
+                <div class="empty-illustration">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+                </div>
+                <h3>No traffic yet</h3>
+                <p>Once you start sending requests, they'll appear here in real time.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ─────────────── Keys ─────────────── -->
+        <section id="panel-keys" class="panel">
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title">API keys</h2>
+                <p class="card-sub">
+                  Each key authenticates against this Lite workspace. Plaintext is shown <strong>once</strong> on creation.
+                </p>
+              </div>
+            </header>
+
+            <form id="key-form" class="inline-form">
+              <label class="field flex-grow">
+                <span class="field-label">Name</span>
+                <input id="key-name" type="text" placeholder="e.g. ci-runner, app-prod, my-laptop">
+              </label>
+              <button type="submit" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create key
+              </button>
+            </form>
+
+            <div id="new-key-display" class="callout" hidden>
+              <div class="callout-head">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <strong>Save this key — it won't be shown again.</strong>
+              </div>
+              <pre class="code-pre"><code id="new-key-value"></code><button class="copy-btn" id="new-key-copy" data-tooltip="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></pre>
+            </div>
+
+            <div class="table-wrap">
+              <table id="keys-table">
+                <thead><tr>
+                  <th>Name</th>
+                  <th>Prefix</th>
+                  <th>Status</th>
+                  <th>Last used</th>
+                  <th class="th-actions"></th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- ─────────────── Help drawer ─────────────── -->
+  <aside class="drawer" id="help-drawer" hidden>
+    <header class="drawer-head">
+      <h2>Help &amp; docs</h2>
+      <button class="icon-btn" id="close-help" aria-label="Close help">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+      <section>
+        <h3>What is OrcaRouter Lite?</h3>
+        <p>A self-hosted, OpenAI-compatible LLM router. Bring your own provider keys (BYOK), point any OpenAI SDK at the local base URL, and the router picks the cheapest capable model for each request — with optional fallback to hosted <a href="https://api.orcarouter.ai" target="_blank" rel="noreferrer">api.orcarouter.ai</a>.</p>
+      </section>
+      <section>
+        <h3>60-second quickstart</h3>
+        <ol>
+          <li>Add a provider key under <a href="#" data-go-tab="providers">Providers</a> (or set <code>OPENAI_API_KEY</code> in your env).</li>
+          <li>Optionally choose a <a href="#" data-go-tab="routing">routing strategy</a>.</li>
+          <li>Use this URL as your OpenAI <code>base_url</code>: <code id="help-base-url">http://localhost:8000/v1</code></li>
+          <li>Use the <code>sk-orca-*</code> key you signed in with as the API key.</li>
+        </ol>
+      </section>
+      <section>
+        <h3>Keyboard shortcuts</h3>
+        <ul class="kbd-list">
+          <li><kbd>1</kbd> – <kbd>5</kbd><span>Switch tabs</span></li>
+          <li><kbd>⌘</kbd><kbd>K</kbd><span>Command palette</span></li>
+          <li><kbd>?</kbd><span>Toggle this help</span></li>
+          <li><kbd>Esc</kbd><span>Close drawers / palette</span></li>
+        </ul>
+      </section>
+      <section>
+        <h3>Going further</h3>
+        <ul class="link-list">
+          <li><a href="https://www.orcarouter.ai" target="_blank" rel="noreferrer">orcarouter.ai →</a></li>
+          <li><a href="https://docs.orcarouter.ai/introduction" target="_blank" rel="noreferrer">docs.orcarouter.ai →</a></li>
+          <li><a href="https://github.com/Continuum-AI-Corp/OrcaRouter-Lite" target="_blank" rel="noreferrer">GitHub →</a></li>
+        </ul>
+      </section>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <!-- ─────────────── Command palette ─────────────── -->
+  <div class="palette" id="palette" hidden>
+    <div class="palette-card">
+      <div class="palette-input-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="palette-input" placeholder="Jump to a tab, copy your base URL, open docs…" autocomplete="off" spellcheck="false">
+        <kbd>esc</kbd>
+      </div>
+      <ul class="palette-list" id="palette-list"></ul>
+    </div>
+  </div>
+
+  <!-- ─────────────── Toast region ─────────────── -->
+  <div class="toast-region" id="toast-region" aria-live="polite"></div>
 
   <script src="/static/app.js"></script>
 </body>
