@@ -117,7 +117,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(AuthMiddleware)
 
-    from app.routes import analytics, chat, health, keys, models, providers, routing
+    from app.routes import analytics, chat, health, hosted, keys, models, providers, routing
 
     app.include_router(health.router)
     app.include_router(providers.router)
@@ -126,6 +126,7 @@ def create_app() -> FastAPI:
     app.include_router(models.router)
     app.include_router(keys.router)
     app.include_router(routing.router)
+    app.include_router(hosted.router)
 
     # ── Static SPA (provider keys, routing, analytics, keys) ──
     import os

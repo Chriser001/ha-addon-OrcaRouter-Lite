@@ -151,13 +151,17 @@
               <div class="kpi-value" id="kpi-spend">$—</div>
               <div class="kpi-sub" id="kpi-spend-sub">across 0 requests</div>
             </article>
-            <article class="kpi-card kpi-card-accent" data-tooltip="Estimated savings vs baseline GPT-4o for the same traffic">
+            <article class="kpi-card kpi-card-accent" data-tooltip="Top: vs GPT-4o for the same traffic. Bottom: extra savings hosted-auto could unlock by reaching cheaper models you don't have keys for.">
               <div class="kpi-head">
-                <span class="kpi-label">Saved vs GPT-4o</span>
+                <span class="kpi-label">Routing savings</span>
                 <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div class="kpi-value" id="kpi-saved">$—</div>
-              <div class="kpi-sub" id="kpi-saved-sub">— smarter routing</div>
+              <div class="kpi-sub" id="kpi-saved-sub">vs always-GPT-4o</div>
+              <div class="kpi-extra" id="kpi-hosted-auto">
+                <span class="kpi-extra-label">vs hosted-auto</span>
+                <span class="kpi-extra-value" id="kpi-hosted-auto-value">+$—</span>
+              </div>
             </article>
             <article class="kpi-card" data-tooltip="True median latency across the most recent requests (raw samples, not averaged)">
               <div class="kpi-head">
@@ -214,6 +218,53 @@
             </article>
           </div>
 
+          <article class="card hosted-card" id="hosted-card" hidden>
+            <div class="hosted-card-head">
+              <div>
+                <h2 class="card-title">
+                  Hosted fallback
+                  <span class="pill" id="hosted-status-pill">Not configured</span>
+                </h2>
+                <p class="card-sub" id="hosted-card-sub">
+                  One key, every model. Standard fallback for any model you don't have a local key for.
+                  Free <strong>$5</strong> trial credit on sign-up — no credit card.
+                </p>
+              </div>
+            </div>
+
+            <!-- Unconfigured state -->
+            <div class="hosted-cta" id="hosted-cta" hidden>
+              <div class="hosted-cta-actions">
+                <a class="btn btn-primary" id="hosted-signup-btn" href="#" target="_blank" rel="noreferrer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+                  Get free $5 credit on orcarouter.ai
+                </a>
+                <span class="hosted-step">Then paste the <code>sk-orca-*</code> key →</span>
+              </div>
+              <form id="hosted-key-form" class="inline-form hosted-paste">
+                <label class="field flex-grow">
+                  <span class="field-label">Hosted API key</span>
+                  <input id="hosted-key-input" type="password" placeholder="sk-orca-..." autocomplete="off" spellcheck="false">
+                </label>
+                <button type="submit" class="btn btn-primary">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Activate fallback
+                </button>
+              </form>
+              <div id="unreachable-list" class="unreachable-list" hidden>
+                <p class="hosted-meta">Models you can't reach today — hosted unlocks all of them:</p>
+                <div class="unreachable-grid" id="unreachable-grid"></div>
+              </div>
+            </div>
+
+            <!-- Configured state -->
+            <div class="hosted-active" id="hosted-active" hidden>
+              <p class="hosted-meta" id="hosted-active-meta">Active — every catalog model is reachable.</p>
+              <div class="hosted-savings" id="hosted-savings"></div>
+              <button class="btn btn-ghost btn-sm" id="hosted-remove-btn" data-tooltip="Disable hosted fallback">Remove key</button>
+            </div>
+          </article>
+
           <article class="card help-banner" id="getting-started">
             <div>
               <h3>New here? Get fully set up in 2 minutes</h3>
@@ -229,6 +280,23 @@
 
         <!-- ─────────────── Providers ─────────────── -->
         <section id="panel-providers" class="panel">
+          <article class="card hosted-card hosted-card-compact" id="providers-hosted-card" hidden>
+            <div class="hosted-card-head">
+              <div>
+                <h2 class="card-title">
+                  Hosted fallback
+                  <span class="pill" id="providers-hosted-pill">Not configured</span>
+                </h2>
+                <p class="card-sub">
+                  Cover the long tail without per-provider sign-ups. Free <strong>$5</strong> credit, billed at cost after.
+                </p>
+              </div>
+              <a class="btn btn-primary" id="providers-hosted-signup" href="#" target="_blank" rel="noreferrer">
+                Get free credit
+              </a>
+            </div>
+          </article>
+
           <article class="card">
             <header class="card-head">
               <div>

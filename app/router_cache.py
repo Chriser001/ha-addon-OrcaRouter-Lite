@@ -36,7 +36,7 @@ def build_deployments(
     Precedence:
       1. DB provider keys (UI-edited, authoritative; encrypted at rest)
       2. Env vars for providers not present in DB
-      3. Hosted-as-upstream (one entry per known model) when ORCAROUTER_API_KEY set
+      3. Hosted-as-upstream (one entry per catalog model) — DB key > env key
     """
     deployments: list[ProviderDeployment] = []
     db_provider_keys: dict[str, str] = {}
@@ -49,7 +49,9 @@ def build_deployments(
         except Exception:
             continue
 
-    # Step 1+2: provider keys (DB > env)
+    # Step 1+2: provider keys (DB > env). The hosted "orcarouter" provider
+    # has no rows in `models_for_provider`, so it's silently skipped here and
+    # picked up in step 3.
     for provider, models in (
         (p, models_for_provider(p)) for p in {*db_provider_keys, *env_keys}
     ):
@@ -66,20 +68,65 @@ def build_deployments(
                 )
             )
 
-    # Step 3: hosted-as-upstream
-    if settings.orcarouter_api_key:
+    # Step 3: hosted-as-upstream. DB-stored "orcarouter" key (set via the
+    # dashboard's Hosted fallback CTA) overrides the env key, mirroring step
+    # 1+2 precedence. Either source enables every catalog model as a hosted
+    # deployment so the long tail of providers never errors with "no key."
+    hosted_key = db_provider_keys.get(HOSTED_PROVIDER_NAME) or settings.orcarouter_api_key
+    if hosted_key:
         for model_id in all_model_ids():
             deployments.append(
                 ProviderDeployment(
                     model_name=model_id,
                     litellm_model=f"openai/{model_id}",
-                    api_key=settings.orcarouter_api_key,
+                    api_key=hosted_key,
                     api_base=settings.orcarouter_base_url,
                     provider=HOSTED_PROVIDER_NAME,
                 )
             )
 
     return deployments
+
+
+def hosted_key_source(
+    *, env_key: str | None, db_keys: list["ProviderKey"]
+) -> str | None:
+    """Return where the hosted upstream key came from, or None if unconfigured.
+
+    Mirrors the precedence used by `build_deployments`: a DB row beats env,
+    BUT only if the row's encrypted_key actually decrypts. A row whose
+    ciphertext is corrupt (post-rotation, DB tampering) is silently dropped
+    by `build_deployments`, so reporting it as "configured" here would tell
+    the dashboard "Active" while requests still 503 on hosted models.
+    """
+    if HOSTED_PROVIDER_NAME in usable_providers_from_db(db_keys):
+        return "dashboard"
+    if env_key:
+        return "env"
+    return None
+
+
+def usable_providers_from_db(db_keys: list["ProviderKey"]) -> set[str]:
+    """Set of provider names whose DB-stored key actually decrypts.
+
+    Single source of truth for "is this provider deployable from a DB row?"
+    Used by `hosted_key_source` and `/v1/analytics/unreachable` so the
+    dashboard's "configured providers" view stays in lockstep with what
+    `build_deployments` will actually wire up. Without this, an
+    undecryptable row (after `CREDENTIAL_ENCRYPTION_KEY` rotation) would
+    falsely suppress models from the unreachable list while the router
+    can't reach them either.
+    """
+    out: set[str] = set()
+    for row in db_keys:
+        if not row.is_enabled or row.is_deleted:
+            continue
+        try:
+            decrypt_credential(row.encrypted_key)
+        except Exception:
+            continue
+        out.add(row.provider)
+    return out
 
 
 # ── Cached router instance ────────────────────────────────────────────────
