@@ -127,3 +127,99 @@ def test_orcarouter_upstream_combines_with_local_keys(monkeypatch):
     providers = {d.provider for d in deps}
     assert "openai" in providers
     assert "orcarouter" in providers
+
+
+def test_orcarouter_db_row_enables_hosted_upstream():
+    """Pasting the orcarouter key in the dashboard (→ DB row) lights up
+    hosted upstream, not just an inert provider entry. Mirrors what happens
+    after a user clicks "Activate fallback" on the hosted CTA card."""
+    from app.config import Settings
+    from app.router_cache import build_deployments
+    from packages.auth.encryption import encrypt_credential
+    from packages.db.models.provider_key import ProviderKey
+    from packages.litellm_adapter.catalog import all_model_ids
+
+    s = Settings(_env_file=None)
+    db_row = ProviderKey(
+        provider="orcarouter",
+        encrypted_key=encrypt_credential("sk-orca-from-dashboard"),
+        key_prefix="sk-orca-...",
+        label="default",
+        is_enabled=True,
+    )
+    deps = build_deployments(env_keys={}, db_keys=[db_row], settings=s)
+    orca_deps = [d for d in deps if d.provider == "orcarouter"]
+    assert len(orca_deps) == len(all_model_ids())
+    for d in orca_deps:
+        assert d.api_key == "sk-orca-from-dashboard"
+        assert d.api_base == "https://api.orcarouter.ai/v1"
+
+
+def test_orcarouter_db_row_overrides_env_key(monkeypatch):
+    """DB-stored hosted key beats env, just like every other provider does.
+    Lets a user rotate via the dashboard without restarting the container."""
+    from app.config import Settings
+    from app.router_cache import build_deployments
+    from packages.auth.encryption import encrypt_credential
+    from packages.db.models.provider_key import ProviderKey
+
+    monkeypatch.setenv("ORCAROUTER_API_KEY", "sk-orca-from-env")
+    s = Settings(_env_file=None)
+
+    db_row = ProviderKey(
+        provider="orcarouter",
+        encrypted_key=encrypt_credential("sk-orca-from-db"),
+        key_prefix="sk-orca-...",
+        label="default",
+        is_enabled=True,
+    )
+    deps = build_deployments(env_keys={}, db_keys=[db_row], settings=s)
+    orca_deps = [d for d in deps if d.provider == "orcarouter"]
+    assert orca_deps  # at least one
+    assert all(d.api_key == "sk-orca-from-db" for d in orca_deps)
+
+
+def test_disabled_orcarouter_db_row_falls_back_to_env(monkeypatch):
+    """A disabled hosted DB row shouldn't shadow the env key — env is the
+    fallback when the dashboard-stored key is turned off."""
+    from app.config import Settings
+    from app.router_cache import build_deployments
+    from packages.auth.encryption import encrypt_credential
+    from packages.db.models.provider_key import ProviderKey
+
+    monkeypatch.setenv("ORCAROUTER_API_KEY", "sk-orca-from-env")
+    s = Settings(_env_file=None)
+
+    db_row = ProviderKey(
+        provider="orcarouter",
+        encrypted_key=encrypt_credential("sk-orca-disabled"),
+        key_prefix="sk-orca-...",
+        label="default",
+        is_enabled=False,
+    )
+    deps = build_deployments(env_keys={}, db_keys=[db_row], settings=s)
+    orca_deps = [d for d in deps if d.provider == "orcarouter"]
+    assert orca_deps
+    assert all(d.api_key == "sk-orca-from-env" for d in orca_deps)
+
+
+def test_hosted_key_source_reports_origin(monkeypatch):
+    """`hosted_key_source` underpins the dashboard's "Hosted fallback"
+    pill — must distinguish dashboard-set vs env-set vs unconfigured."""
+    from app.router_cache import hosted_key_source
+    from packages.auth.encryption import encrypt_credential
+    from packages.db.models.provider_key import ProviderKey
+
+    assert hosted_key_source(env_key=None, db_keys=[]) is None
+    assert hosted_key_source(env_key="sk-orca-x", db_keys=[]) == "env"
+
+    db_row = ProviderKey(
+        provider="orcarouter",
+        encrypted_key=encrypt_credential("sk-orca-d"),
+        key_prefix="sk-orca-...",
+        label="default",
+        is_enabled=True,
+    )
+    assert hosted_key_source(env_key=None, db_keys=[db_row]) == "dashboard"
+    # DB beats env in the precedence reporting too
+    assert hosted_key_source(env_key="sk-orca-x", db_keys=[db_row]) == "dashboard"

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import router_cache
 from app.deps import get_db, get_key_context
 from packages.auth.encryption import encrypt_credential
 from packages.auth.types import KeyContext
@@ -87,6 +88,7 @@ async def set_provider_key(
         db.add(existing)
 
     await db.commit()
+    router_cache.invalidate_router()
 
     return ProviderKeyOut(
         provider=existing.provider,
@@ -115,4 +117,5 @@ async def delete_provider_key(
 
     row.is_deleted = 1
     await db.commit()
+    router_cache.invalidate_router()
     return Response(status_code=204)

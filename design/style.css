@@ -512,12 +512,127 @@ code {
   color: var(--ink);
 }
 .kpi-sub { margin-top: 4px; font-size: 12.5px; color: var(--ink-3); }
+.kpi-extra {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.kpi-extra-label { letter-spacing: 0.02em; }
+.kpi-extra-value {
+  font-weight: 600;
+  color: var(--brand-deep);
+  font-variant-numeric: tabular-nums;
+}
 .kpi-card-accent {
   background: linear-gradient(135deg, var(--brand-soft) 0%, white 60%);
   border-color: var(--brand-soft);
 }
 .kpi-card-accent .kpi-value { color: var(--brand-deep); }
 .kpi-card-accent .kpi-icon  { color: var(--brand); }
+
+/* ==========================================================================
+   HOSTED FALLBACK CARD
+   ========================================================================== */
+.hosted-card {
+  background: linear-gradient(135deg, var(--brand-soft) 0%, white 70%);
+  border-color: var(--brand-soft);
+}
+.hosted-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s-4);
+}
+.hosted-card-compact .hosted-card-head { align-items: center; }
+.hosted-cta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-top: var(--s-4);
+}
+.hosted-cta-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.hosted-step {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.hosted-step code {
+  font-size: 11.5px;
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.hosted-paste { margin: 0; }
+.hosted-active {
+  margin-top: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.hosted-meta { font-size: 13px; color: var(--ink-2); margin: 0; }
+.hosted-savings {
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+}
+
+/* ==========================================================================
+   UNREACHABLE MODELS GRID
+   ========================================================================== */
+.unreachable-list { margin-top: var(--s-3); }
+.unreachable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+.unreachable-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color var(--d-fast) var(--ease), transform var(--d-fast) var(--ease);
+}
+.unreachable-item:hover {
+  border-color: var(--brand);
+  transform: translateY(-1px);
+}
+.unreachable-id { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); }
+.unreachable-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.unreachable-provider { text-transform: capitalize; }
+.unreachable-caps { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.cap-pill {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
 
 /* ==========================================================================
    FORMS

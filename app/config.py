@@ -50,9 +50,16 @@ class Settings(BaseSettings):
     together_api_key: str | None = None
     fireworks_api_key: str | None = None
 
-    # ── Hosted-as-upstream (managed safety net) ──
+    # ── Hosted-as-upstream (standard fallback) ──
+    # When configured (env or via dashboard), every catalog model gets an extra
+    # deployment routed through hosted — so requests for a model the user has
+    # no local key for still succeed. Free $5 trial credit available via the
+    # signup URL surfaced in the Lite dashboard's "Hosted fallback" card.
     orcarouter_api_key: str | None = None
     orcarouter_base_url: str = "https://api.orcarouter.ai/v1"
+    orcarouter_signup_url: str = (
+        "https://www.orcarouter.ai/signup?ref=lite-dashboard&trial=5usd"
+    )
 
     # ── Body limit (for image / file attachments) ──
     max_body_bytes: int = 100 * 1024 * 1024

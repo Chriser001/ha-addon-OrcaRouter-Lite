@@ -36,7 +36,7 @@ def build_deployments(
     Precedence:
       1. DB provider keys (UI-edited, authoritative; encrypted at rest)
       2. Env vars for providers not present in DB
-      3. Hosted-as-upstream (one entry per known model) when ORCAROUTER_API_KEY set
+      3. Hosted-as-upstream (one entry per catalog model) — DB key > env key
     """
     deployments: list[ProviderDeployment] = []
     db_provider_keys: dict[str, str] = {}
@@ -49,7 +49,9 @@ def build_deployments(
         except Exception:
             continue
 
-    # Step 1+2: provider keys (DB > env)
+    # Step 1+2: provider keys (DB > env). The hosted "orcarouter" provider
+    # has no rows in `models_for_provider`, so it's silently skipped here and
+    # picked up in step 3.
     for provider, models in (
         (p, models_for_provider(p)) for p in {*db_provider_keys, *env_keys}
     ):
@@ -66,20 +68,41 @@ def build_deployments(
                 )
             )
 
-    # Step 3: hosted-as-upstream
-    if settings.orcarouter_api_key:
+    # Step 3: hosted-as-upstream. DB-stored "orcarouter" key (set via the
+    # dashboard's Hosted fallback CTA) overrides the env key, mirroring step
+    # 1+2 precedence. Either source enables every catalog model as a hosted
+    # deployment so the long tail of providers never errors with "no key."
+    hosted_key = db_provider_keys.get(HOSTED_PROVIDER_NAME) or settings.orcarouter_api_key
+    if hosted_key:
         for model_id in all_model_ids():
             deployments.append(
                 ProviderDeployment(
                     model_name=model_id,
                     litellm_model=f"openai/{model_id}",
-                    api_key=settings.orcarouter_api_key,
+                    api_key=hosted_key,
                     api_base=settings.orcarouter_base_url,
                     provider=HOSTED_PROVIDER_NAME,
                 )
             )
 
     return deployments
+
+
+def hosted_key_source(
+    *, env_key: str | None, db_keys: list["ProviderKey"]
+) -> str | None:
+    """Return where the hosted upstream key came from, or None if unconfigured.
+
+    Mirrors the precedence used by `build_deployments`: a DB row beats env.
+    Used by `/v1/hosted` to tell the dashboard whether to show the CTA or
+    the "active" pill.
+    """
+    for row in db_keys:
+        if row.provider == HOSTED_PROVIDER_NAME and row.is_enabled and not row.is_deleted:
+            return "dashboard"
+    if env_key:
+        return "env"
+    return None
 
 
 # ── Cached router instance ────────────────────────────────────────────────

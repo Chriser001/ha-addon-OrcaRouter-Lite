@@ -30,8 +30,10 @@ const state = {
   recent: [],
   spend: { total_microcents: 0, by_model: [] },
   latency: { by_provider: [] },
-  savings: { saved_microcents: 0, savings_percent: 0 },
+  savings: { saved_microcents: 0, savings_percent: 0, hosted_auto: null },
   models: [],
+  hosted: { configured: false, source: null, signup_url: "https://www.orcarouter.ai/signup?ref=lite-dashboard&trial=5usd", provider_name: "orcarouter" },
+  unreachable: { hosted_configured: false, unreachable: [] },
   windowDays: 7,
   lang: "python",
 };
@@ -157,6 +159,8 @@ function showShell() {
     loadAnalytics(),
     loadKeys(),
     loadModels(),
+    loadHosted(),
+    loadUnreachable(),
   ]).then(() => {
     renderProviders();
     renderRouting();
@@ -164,6 +168,8 @@ function showShell() {
     renderKeys();
     renderOverview();
     renderQuickstart();
+    renderHostedCard();
+    renderUnreachable();
     syncOnboarding();
   });
 }
@@ -188,9 +194,21 @@ function setTab(tab) {
   $("#page-sub").textContent = TAB_META[tab].sub;
   // refresh the tab's data so it's fresh-on-view
   if (tab === "analytics") loadAnalytics().then(renderAnalytics);
-  if (tab === "providers") loadProviders().then(renderProviders);
+  if (tab === "providers") {
+    Promise.all([loadProviders(), loadHosted(), loadUnreachable()]).then(() => {
+      renderProviders();
+      renderHostedCard();
+      renderUnreachable();
+    });
+  }
   if (tab === "keys")      loadKeys().then(renderKeys);
-  if (tab === "overview")  renderOverview();
+  if (tab === "overview")  {
+    Promise.all([loadHosted(), loadUnreachable()]).then(() => {
+      renderOverview();
+      renderHostedCard();
+      renderUnreachable();
+    });
+  }
 }
 
 function bindTabs() {
@@ -254,9 +272,11 @@ function renderProviders() {
         try {
           await api(`/v1/providers/${prov}`, { method: "DELETE" });
           toast(`Removed ${prov}`, "ok");
-          await loadProviders();
+          await Promise.all([loadProviders(), loadHosted(), loadUnreachable()]);
           renderProviders();
           renderQuickAdd();
+          renderHostedCard();
+          renderUnreachable();
           renderOverview();
           syncOnboarding();
         } catch (e) {
@@ -304,8 +324,10 @@ function bindProviderForm() {
       });
       $("#provider-key").value = "";
       toast(`Saved ${provider} key`, "ok");
-      await loadProviders();
+      await Promise.all([loadProviders(), loadHosted(), loadUnreachable()]);
       renderProviders();
+      renderHostedCard();
+      renderUnreachable();
       renderOverview();
       syncOnboarding();
     } catch (err) {
@@ -375,6 +397,147 @@ async function loadAnalytics() {
     if (savings) state.savings = savings;
   } catch (e) {
     toast(`Couldn't load analytics: ${e.message}`, "err");
+  }
+}
+
+/* ==========================================================================
+   HOSTED FALLBACK + UNREACHABLE MODELS
+   ========================================================================== */
+async function loadHosted() {
+  try {
+    state.hosted = await api(`/v1/hosted`);
+  } catch {
+    // Non-fatal — card just stays in unconfigured state.
+  }
+}
+
+async function loadUnreachable() {
+  try {
+    state.unreachable = await api(`/v1/analytics/unreachable?limit=8`);
+  } catch {
+    state.unreachable = { hosted_configured: false, unreachable: [] };
+  }
+}
+
+function fmtPerMtok(perToken) {
+  // litellm prices are USD per token; show as $/1M tokens.
+  const perMillion = (perToken || 0) * 1_000_000;
+  if (perMillion === 0) return "—";
+  if (perMillion < 1) return `$${perMillion.toFixed(2)}`;
+  return `$${perMillion.toFixed(2)}`;
+}
+
+function renderHostedCard() {
+  const card = $("#hosted-card");
+  if (!card) return;
+  card.hidden = false;
+
+  const pill = $("#hosted-status-pill");
+  const cta = $("#hosted-cta");
+  const active = $("#hosted-active");
+  const signupBtn = $("#hosted-signup-btn");
+  const providersPill = $("#providers-hosted-pill");
+  const providersSignup = $("#providers-hosted-signup");
+  const providersCard = $("#providers-hosted-card");
+
+  const url = state.hosted.signup_url || "https://www.orcarouter.ai/signup?ref=lite-dashboard&trial=5usd";
+  if (signupBtn) signupBtn.href = url;
+  if (providersSignup) providersSignup.href = url;
+
+  if (state.hosted.configured) {
+    pill.textContent = "Active";
+    pill.className = "pill ok";
+    cta.hidden = true;
+    active.hidden = false;
+    if (providersPill) { providersPill.textContent = "Active"; providersPill.className = "pill ok"; }
+    if (providersCard) providersCard.hidden = true;
+
+    // Hosted-active state: source line + extra savings projection
+    const src = state.hosted.source === "env" ? "via environment variable" : "via dashboard";
+    const ha = state.savings.hosted_auto;
+    const haText = (ha && ha.saved_microcents > 0)
+      ? `Up to <strong>${fmtUsd(ha.saved_microcents)}</strong> additional savings detected (${ha.savings_percent}% of current spend) by routing through hosted-auto on the cheapest catalog model per request.`
+      : `No request history yet — once traffic flows, this card will show how much routing through hosted-auto would save.`;
+    $("#hosted-active-meta").innerHTML = `Active ${src}. Every catalog model is reachable.`;
+    $("#hosted-savings").innerHTML = haText;
+  } else {
+    pill.textContent = "Not configured";
+    pill.className = "pill muted";
+    cta.hidden = false;
+    active.hidden = true;
+    if (providersPill) { providersPill.textContent = "Not configured"; providersPill.className = "pill muted"; }
+    if (providersCard) providersCard.hidden = false;
+  }
+}
+
+function renderUnreachable() {
+  const wrap = $("#unreachable-list");
+  const grid = $("#unreachable-grid");
+  if (!wrap || !grid) return;
+  const list = state.unreachable.unreachable || [];
+  if (state.hosted.configured || list.length === 0) {
+    wrap.hidden = true;
+    return;
+  }
+  wrap.hidden = false;
+  grid.innerHTML = list.map((m) => {
+    const caps = [];
+    if (m.supports_tools) caps.push("tools");
+    if (m.supports_vision) caps.push("vision");
+    if (m.supports_json_mode) caps.push("json");
+    const capPills = caps.map((c) => `<span class="cap-pill">${c}</span>`).join("");
+    return `
+      <div class="unreachable-item" data-tooltip="Provider: ${escapeHtml(m.provider)} · ${fmtPerMtok(m.input_cost_per_token)}/$1M in · ${fmtPerMtok(m.output_cost_per_token)}/$1M out">
+        <div class="unreachable-id"><code>${escapeHtml(m.id)}</code></div>
+        <div class="unreachable-meta">
+          <span class="unreachable-provider">${escapeHtml(m.provider)}</span>
+          <span class="unreachable-price">${fmtPerMtok(m.input_cost_per_token)} / ${fmtPerMtok(m.output_cost_per_token)} per 1M</span>
+        </div>
+        <div class="unreachable-caps">${capPills}</div>
+      </div>`;
+  }).join("");
+}
+
+function bindHostedForm() {
+  const form = $("#hosted-key-form");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const v = $("#hosted-key-input").value.trim();
+      if (!v) { toast("Paste your sk-orca-* key from orcarouter.ai", "err"); return; }
+      try {
+        await api(`/v1/providers/orcarouter`, {
+          method: "PUT",
+          body: JSON.stringify({ api_key: v }),
+        });
+        $("#hosted-key-input").value = "";
+        toast("Hosted fallback activated — every model is now reachable", "ok");
+        await Promise.all([loadHosted(), loadUnreachable(), loadProviders()]);
+        renderHostedCard();
+        renderUnreachable();
+        renderProviders();
+        renderOverview();
+      } catch (err) {
+        toast(err.message, "err");
+      }
+    });
+  }
+  const remove = $("#hosted-remove-btn");
+  if (remove) {
+    remove.addEventListener("click", async () => {
+      if (!confirm("Disable hosted fallback? Requests for models without a local key will start failing.")) return;
+      try {
+        await api(`/v1/providers/orcarouter`, { method: "DELETE" });
+        toast("Hosted fallback disabled", "info");
+        await Promise.all([loadHosted(), loadUnreachable(), loadProviders()]);
+        renderHostedCard();
+        renderUnreachable();
+        renderProviders();
+        renderOverview();
+      } catch (err) {
+        toast(err.message, "err");
+      }
+    });
   }
 }
 
@@ -564,8 +727,21 @@ function renderOverview() {
   $("#kpi-saved").textContent = fmtUsd(state.savings.saved_microcents || 0);
   $("#kpi-saved-sub").textContent =
     state.savings.savings_percent
-      ? `${state.savings.savings_percent}% smarter routing`
+      ? `vs always-GPT-4o (${state.savings.savings_percent}% off)`
       : "vs always-GPT-4o baseline";
+
+  // Second row: what hosted-auto could save on top of current routing.
+  const hostedAuto = state.savings.hosted_auto;
+  const haEl = $("#kpi-hosted-auto-value");
+  if (haEl) {
+    if (hostedAuto && hostedAuto.saved_microcents > 0) {
+      haEl.textContent = `+${fmtUsd(hostedAuto.saved_microcents)} (${hostedAuto.savings_percent}%)`;
+    } else if (hostedAuto && hostedAuto.comparable_request_count > 0) {
+      haEl.textContent = "already optimal";
+    } else {
+      haEl.textContent = "—";
+    }
+  }
 
   // True p50/p99 across raw request samples — averaging per-provider
   // percentiles is the "median of medians" trap. The /v1/analytics/latency
@@ -918,6 +1094,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindKeyboard();
   bindQuickstart();
   bindOnboarding();
+  bindHostedForm();
 
   // Probe existing key
   const ok = await checkAuth();
