@@ -22,6 +22,41 @@ def _reset_module_state() -> Generator[None, None, None]:
         router_cache.invalidate_router()
     except Exception:
         pass
+    try:
+        from app import orcarouter_models
+        orcarouter_models.reset_cache()
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _isolate_orcarouter_remote(request, monkeypatch):
+    """Block real HTTP fetches from orcarouter.ai during tests so the suite
+    is deterministic regardless of CI runner network conditions.
+
+    Tests that exercise the real fetch path (redirects, transport
+    behavior) opt out with `@pytest.mark.real_remote`. Tests that mock
+    `_fetch_remote` themselves win automatically because monkeypatch
+    applies setattrs in order (last write wins).
+
+    Without this, `/v1/analytics/unreachable` integration tests would
+    occasionally surface live orcarouter.ai/models data and assertions
+    like 'claude in unreachable list' would flap based on what the page
+    returned that minute."""
+    if request.node.get_closest_marker("real_remote"):
+        return
+    try:
+        from app import orcarouter_models
+    except Exception:
+        return
+
+    async def _no_network(url: str, timeout: float = 5.0) -> list[str]:
+        raise RuntimeError(
+            "test isolation: real _fetch_remote disabled — "
+            "monkeypatch it or mark the test with @pytest.mark.real_remote"
+        )
+
+    monkeypatch.setattr(orcarouter_models, "_fetch_remote", _no_network)
 
 
 @pytest.fixture
