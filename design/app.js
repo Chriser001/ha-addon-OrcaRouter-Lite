@@ -65,11 +65,20 @@ const escapeHtml = (s = "") =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
 
 // Mirror of app/routes/analytics.py:_percentile — same nearest-rank
-// algorithm so client-derived percentiles match the backend's.
+// algorithm, including Python's banker's rounding (round-half-to-even)
+// for .5 ties so client-derived percentiles match the backend
+// bit-for-bit on the same sample.
+function bankersRound(x) {
+  const floor = Math.floor(x);
+  const diff = x - floor;
+  if (diff < 0.5) return floor;
+  if (diff > 0.5) return floor + 1;
+  return floor % 2 === 0 ? floor : floor + 1;
+}
 function percentile(values, pct) {
   if (!values.length) return 0;
   const s = [...values].sort((a, b) => a - b);
-  const idx = Math.max(0, Math.min(s.length - 1, Math.round((s.length - 1) * pct)));
+  const idx = Math.max(0, Math.min(s.length - 1, bankersRound((s.length - 1) * pct)));
   return Math.round(s[idx]);
 }
 
