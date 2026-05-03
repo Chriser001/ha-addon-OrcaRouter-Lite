@@ -20,7 +20,9 @@ COPY packages/ packages/
 COPY design/ design/
 COPY scripts/ scripts/
 
-RUN useradd -m orca && chown -R orca:orca /app
+RUN useradd -m orca \
+    && mkdir -p /data \
+    && chown -R orca:orca /app /data
 USER orca
 
 EXPOSE 8000
