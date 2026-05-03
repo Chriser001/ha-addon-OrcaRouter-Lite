@@ -5,7 +5,7 @@ OpenAI-compatible. BYOK. Single-workspace. Streaming. `model="auto"`.
 
 ![OrcaRouter Lite Logo](https://github.com/Continuum-AI-Corp/OrcaRouter-Lite/blob/main/design/OrcaRouter%20Lite.png?raw=true)
 
-[![tests](https://img.shields.io/badge/tests-91_passing-brightgreen)](#testing)
+[![tests](https://img.shields.io/badge/tests-127_passing-brightgreen)](#testing)
 [![models](https://img.shields.io/badge/models-100%2B-blue)](#model-catalog)
 [![license](https://img.shields.io/badge/license-MIT-blue)](#license)
 
@@ -180,10 +180,11 @@ for chunk in client.chat.completions.create(
 
 - `POST /v1/chat/completions` — proxy + streaming + `model="auto"` + cross-provider prompt cache
 - `GET  /v1/models` — discoverable model catalog (100+ models from `litellm.model_cost`)
-- `PUT  /v1/providers/{provider}` — set encrypted provider keys
+- `GET/PUT/DELETE /v1/providers/{provider}` — set / list / revoke encrypted provider keys
 - `GET/PUT /v1/routing` — change strategy (`balanced` / `cheapest` / `fastest` / `quality`)
-- `GET  /v1/analytics/{recent,spend,latency,savings}` — local analytics, no telemetry leaves the box
-- `POST/DELETE /v1/keys/...` — rotate / revoke API keys
+- `GET  /v1/analytics/{recent,spend,latency,savings,unreachable}` — local analytics, no telemetry leaves the box
+- `GET  /v1/hosted` — hosted-fallback status (drives the dashboard's "Get $5 free credit" card)
+- `GET/POST/DELETE /v1/keys/...` — list / rotate / revoke API keys
 - Single-page dashboard at `/`
 - SQLite by default; Postgres opt-in via `DATABASE_URL`; Redis optional
 
@@ -228,7 +229,7 @@ Built test-first. Every behaviour shipped here had a failing test first.
 ```bash
 pip install -e ".[dev]"
 PYTHONPATH=. pytest -v
-# 67 passed in 5.7s
+# 127 passed
 ```
 
 | Slice | Tests | What |
@@ -238,17 +239,20 @@ PYTHONPATH=. pytest -v
 | 3. Auth middleware | 4 | bearer-token validation, 401 on missing/invalid |
 | 4. App factory | 3 | /health, error envelope, /v1/* gating |
 | 5. Provider keys CRUD | 5 | encrypted at rest, plaintext never round-trips |
-| 6. Router cache | 7 | env+DB+hosted deployment assembly with precedence |
-| 7. Chat completion | 4 | OpenAI format, RequestLog, validation |
+| 6. Router cache | 13 | env+DB+hosted deployment assembly with precedence |
+| 7. Chat completion | 5 | OpenAI format, RequestLog, validation |
 | 8. Analytics | 4 | recent / spend / latency p50/p99 |
-| 9. /v1/{models,keys,routing} | 7 | list/create/revoke + strategy update |
+| 9. /v1/{models,keys,routing} | 8 | list/create/revoke + strategy update |
 | 10. Streaming | 4 | SSE format, `[DONE]` sentinel, log writeback |
 | 11. Catalog | 7 | 100+ models, capability flags, pricing |
-| 12. `model="auto"` | 14 | capability detection, cheapest-meeting-needs |
-| 13. Cost savings | 5 | savings vs always-GPT-4 baseline endpoint |
+| 12. `model="auto"` | 21 | capability detection, cheapest-meeting-needs (unit + integration) |
+| 13. Cost savings | 9 | savings vs always-GPT-4 baseline + hosted-auto comparison |
 | 14. Prompt cache | 15 | cross-provider exact-match cache + chat integration |
 | 15. Benchmark | 4 | summarize() + render_markdown() aggregation |
-| **Total** | **91** | |
+| 16. Hosted status | 7 | `/v1/hosted` config-source + signup-URL surface |
+| 17. Hosted-auto savings | 3 | `_hosted_auto_savings` edge cases on synthetic catalogs |
+| 18. Unreachable models | 7 | "models you can't reach" tile clears when hosted is on |
+| **Total** | **127** | |
 
 ## Architecture
 
@@ -260,6 +264,7 @@ app/
 ├── seed.py             First-run bootstrap
 ├── auto_routing.py     model="auto" capability + cost scoring
 ├── router_cache.py     Single-workspace router
+├── prompt_cache.py     Cross-provider exact-match cache (Redis or in-memory LRU)
 ├── schemas.py          OpenAI-compatible request schema
 ├── middleware/auth.py  sk-orca-* validation
 └── routes/
@@ -267,8 +272,9 @@ app/
     ├── models.py       /v1/models
     ├── providers.py    BYOK CRUD
     ├── routing.py      strategy config
-    ├── analytics.py    recent / spend / latency
-    ├── keys.py         rotate API keys
+    ├── analytics.py    recent / spend / latency / savings / unreachable
+    ├── keys.py         list / rotate / revoke API keys
+    ├── hosted.py       /v1/hosted — hosted-fallback status for the dashboard
     └── health.py
 
 packages/
