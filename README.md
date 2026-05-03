@@ -3,6 +3,8 @@
 **Self-hosted LLM router with a managed safety net.**
 OpenAI-compatible. BYOK. Single-workspace. Streaming. `model="auto"`.
 
+![OrcaRouter Lite Logo](https://github.com/Continuum-AI-Corp/OrcaRouter-Lite/blob/main/design/OrcaRouter%20Lite.png?raw=true)
+
 [![tests](https://img.shields.io/badge/tests-91_passing-brightgreen)](#testing)
 [![models](https://img.shields.io/badge/models-100%2B-blue)](#model-catalog)
 [![license](https://img.shields.io/badge/license-MIT-blue)](#license)
