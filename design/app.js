@@ -453,13 +453,19 @@ function renderHostedCard() {
     if (providersCard) providersCard.hidden = true;
 
     // Hosted-active state: source line + extra savings projection
-    const src = state.hosted.source === "env" ? "via environment variable" : "via dashboard";
+    const isEnv = state.hosted.source === "env";
     const ha = state.savings.hosted_auto;
     const haText = (ha && ha.saved_microcents > 0)
       ? `Up to <strong>${fmtUsd(ha.saved_microcents)}</strong> additional savings detected (${ha.savings_percent}% of current spend) by routing through hosted-auto on the cheapest catalog model per request.`
       : `No request history yet — once traffic flows, this card will show how much routing through hosted-auto would save.`;
-    $("#hosted-active-meta").innerHTML = `Active ${src}. Every catalog model is reachable.`;
+    $("#hosted-active-meta").innerHTML = isEnv
+      ? `Active via environment variable (<code>ORCAROUTER_API_KEY</code>). Every catalog model is reachable. To disable, unset the env var and restart.`
+      : `Active via dashboard. Every catalog model is reachable.`;
     $("#hosted-savings").innerHTML = haText;
+    // The Remove button DELETEs the DB row; with no DB row (env-only) it
+    // would 404. Hide it and let the meta line explain how to disable.
+    const removeBtn = $("#hosted-remove-btn");
+    if (removeBtn) removeBtn.hidden = isEnv;
   } else {
     pill.textContent = "Not configured";
     pill.className = "pill muted";

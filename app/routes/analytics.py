@@ -205,7 +205,7 @@ async def savings_vs_baseline(
         else 0
     )
 
-    hosted_auto = _hosted_auto_savings(rows, actual_microcents, CATALOG, CATALOG_BY_ID)
+    hosted_auto = _hosted_auto_savings(rows, CATALOG, CATALOG_BY_ID)
 
     return {
         "baseline_model": baseline,
@@ -219,14 +219,15 @@ async def savings_vs_baseline(
     }
 
 
-def _hosted_auto_savings(
-    rows, actual_microcents: int, catalog: list, catalog_by_id: dict
-) -> dict:
+def _hosted_auto_savings(rows, catalog: list, catalog_by_id: dict) -> dict:
     """For each request, find the cheapest catalog model that meets the
     resolved model's capability set, and sum what it would have cost.
 
     Excludes rows whose resolved model isn't in the catalog (can't compare
     capabilities) and zero-priced catalog entries (likely placeholders).
+    Savings are computed against the actual spend on COMPARABLE rows only —
+    summing non-catalog spend into the baseline would falsely inflate the
+    saved figure shown on the dashboard.
     """
     cheapest_cache: dict[str, object | None] = {}
 
@@ -256,19 +257,25 @@ def _hosted_auto_savings(
         return chosen
 
     hosted_microcents = 0
+    actual_comparable_microcents = 0
     counted = 0
-    for i, o, _c, model_resolved in rows:
+    for i, o, c, model_resolved in rows:
         cheapest = _cheapest_for(model_resolved)
         if cheapest is None:
             continue
+        actual_comparable_microcents += int(c or 0)
         hosted_microcents += int(
             (i or 0) * cheapest.input_cost_per_token * 1_000_000
             + (o or 0) * cheapest.output_cost_per_token * 1_000_000
         )
         counted += 1
 
-    saved = max(0, actual_microcents - hosted_microcents)
-    pct = round(100 * saved / actual_microcents, 1) if actual_microcents else 0
+    saved = max(0, actual_comparable_microcents - hosted_microcents)
+    pct = (
+        round(100 * saved / actual_comparable_microcents, 1)
+        if actual_comparable_microcents
+        else 0
+    )
     return {
         "actual_microcents": hosted_microcents,
         "saved_microcents": saved,

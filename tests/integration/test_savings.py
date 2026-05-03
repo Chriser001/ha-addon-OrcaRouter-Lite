@@ -122,6 +122,93 @@ async def test_savings_endpoint_excludes_failed_requests(savings_client):
     assert body["request_count"] == 2  # the 503 row excluded
 
 
+async def test_hosted_auto_excludes_non_catalog_row_costs_from_savings(tmp_sqlite_url, monkeypatch):
+    """Regression: requests resolved to a model not in the catalog can't be
+    compared against hosted-auto, so they were skipped in the hosted_microcents
+    sum — but their cost was still in actual_microcents. That inflated the
+    saved figure (Codex P1 review on PR #9). The savings denominator must be
+    the actual spend on COMPARABLE rows only."""
+    monkeypatch.setenv("DATABASE_URL", tmp_sqlite_url)
+    from app import config as cfg
+    cfg.get_settings.cache_clear()
+
+    from packages.db.engine import build_engine
+    from packages.db.models.base import Base
+
+    engine = build_engine(tmp_sqlite_url)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from packages.db import session as session_mod
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    session_mod._session_factory = factory
+
+    from app.seed import seed_initial_state
+    async with factory() as s:
+        seed = await seed_initial_state(s)
+
+    # 1 catalog row with tiny cost + 1 non-catalog row with huge cost.
+    # The non-catalog row's cost MUST NOT show up as hosted-auto savings.
+    from packages.db.models.request_log import RequestLog
+    catalog_cost = int((1000 * 1.5e-7 + 500 * 6e-7) * 1_000_000)  # ~$0.00045
+    huge_non_catalog_cost = 999_000_000  # $999 — would dwarf savings if leaked
+
+    rows = [
+        RequestLog(
+            workspace_id="default", api_key_id=str(uuid.uuid4()),
+            trace_id=str(uuid.uuid4()),
+            model_requested="auto", model_resolved="gpt-4o-mini",
+            provider="openai", routing_strategy="balanced",
+            input_tokens=1000, output_tokens=500,
+            cost_microcents=catalog_cost,
+            latency_ms=100, status_code=200,
+        ),
+        RequestLog(
+            workspace_id="default", api_key_id=str(uuid.uuid4()),
+            trace_id=str(uuid.uuid4()),
+            model_requested="auto",
+            model_resolved="some-private-fine-tune-not-in-catalog",
+            provider="openai", routing_strategy="balanced",
+            input_tokens=10_000, output_tokens=10_000,
+            cost_microcents=huge_non_catalog_cost,
+            latency_ms=300, status_code=200,
+        ),
+    ]
+    async with factory() as s:
+        for r in rows:
+            s.add(r)
+        await s.commit()
+
+    from app.main import create_app
+    app = create_app()
+    from httpx import ASGITransport, AsyncClient
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://t",
+        headers={"Authorization": f"Bearer {seed.api_key}"},
+    ) as c:
+        r = await c.get("/v1/analytics/savings?days=30")
+    body = r.json()
+    ha = body["hosted_auto"]
+
+    # Only 1 row was comparable.
+    assert ha["comparable_request_count"] == 1
+    # Hard upper bound: hosted-auto savings can never exceed the actual spend
+    # on comparable rows. The non-catalog $999 row must not leak in.
+    assert ha["saved_microcents"] <= catalog_cost, (
+        f"saved={ha['saved_microcents']} > comparable actual={catalog_cost} — "
+        "non-catalog row cost leaked into the savings figure"
+    )
+    # Percent must also be relative to comparable spend, never the inflated total.
+    assert ha["savings_percent"] <= 100
+
+    await engine.dispose()
+    session_mod._session_factory = None
+
+
 async def test_savings_response_includes_hosted_auto_block(savings_client):
     """The savings tile in the dashboard renders TWO rows:
       1. vs always-GPT-4o (existing)
