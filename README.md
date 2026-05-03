@@ -7,11 +7,17 @@ OpenAI-compatible. BYOK. Single-workspace. Streaming. `model="auto"`.
 [![models](https://img.shields.io/badge/models-100%2B-blue)](#model-catalog)
 [![license](https://img.shields.io/badge/license-MIT-blue)](#license)
 
-OrcaRouter Lite is the open-source single-workspace edition of [OrcaRouter](https://orcarouter.ai). Run it on your laptop, ship it in your product, and optionally fall back to hosted `api.orcarouter.ai` for the long tail of models you don't want to manage keys for.
+OrcaRouter Lite is the open-source single-workspace edition of [OrcaRouter](https://www.orcarouter.ai). Run it on your laptop, ship it in your product, or use hosted `api.orcarouter.ai` directly for the long tail of models you don't want to manage keys for.
 
 > **Why us?** LiteLLM is a library; OpenRouter is closed-source hosted; Ollama is local-only. We're the **self-hosted server with a managed fallback** — a sentence none of those can say.
 
 ## 60-second quickstart
+
+Two ways to use OrcaRouter:
+
+### Path A — Self-hosted (BYOK)
+
+Run Lite on your own machine; bring your own provider keys.
 
 ```bash
 git clone https://github.com/Continuum-AI-Corp/OrcaRouter-Lite.git
@@ -23,7 +29,22 @@ docker compose up
 # logs: ✓ orcarouter-lite ready. API key: sk-orca-abc123...
 ```
 
-Then point any OpenAI SDK at `http://localhost:8000/v1`:
+Base URL: `http://localhost:8000/v1`. Use the `sk-orca-*` key printed at startup.
+
+### Path B — Hosted (account required)
+
+No clone, no docker. Register, get a key, point any OpenAI SDK at hosted.
+
+```bash
+# 1. Register at https://www.orcarouter.ai and copy your sk-orca-* key
+# 2. Use https://api.orcarouter.ai/v1 as the base URL
+```
+
+**Account required.** Hosted handles routing, billing, and the long tail of providers — billed per-token on your OrcaRouter account. See [docs.orcarouter.ai/introduction](https://docs.orcarouter.ai/introduction).
+
+### Then call it from any OpenAI SDK
+
+Examples below use Path A's localhost base URL — swap for `https://api.orcarouter.ai/v1` if you're on Path B.
 
 <details>
 <summary><b>Python</b></summary>
@@ -73,7 +94,7 @@ curl http://localhost:8000/v1/chat/completions \
 ```
 </details>
 
-Open `http://localhost:8000/` for the dashboard (providers, routing, analytics, keys).
+Open `http://localhost:8000/` for the dashboard — providers, routing, analytics, keys (Path A only).
 
 ## Why?
 
@@ -106,9 +127,9 @@ client.chat.completions.create(
 
 The resolved model is exposed back to callers via the `x-orca-resolved-model` response header so you can log/display what was actually used.
 
-## Hosted as upstream (the managed safety net)
+## Hosted as upstream (Lite + hosted)
 
-Set `ORCAROUTER_API_KEY` to your `sk-orca-*` from `app.orcarouter.ai`, and hosted becomes one more provider in the routing chain — covering models your local keys don't:
+Already running Lite? Set `ORCAROUTER_API_KEY` to your `sk-orca-*` from [www.orcarouter.ai](https://www.orcarouter.ai), and hosted becomes one more provider in the routing chain — covering models your local keys don't:
 
 ```bash
 # .env
