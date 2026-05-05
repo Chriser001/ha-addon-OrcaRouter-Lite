@@ -115,7 +115,7 @@ Open `http://localhost:8000/` for the dashboard — providers, routing, analytic
 
 ## Why?
 
-| | Lite | LiteLLM library | OpenRouter | Ollama |
+| | OrcaRouter Lite | LiteLLM library | OpenRouter | Ollama |
 |---|---|---|---|---|
 | Self-hosted server | ✓ | as a library | ✗ | ✓ |
 | OpenAI-compatible | ✓ | ✓ | ✓ | ✓ |
