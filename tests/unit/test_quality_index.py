@@ -134,6 +134,105 @@ def test_match_catalog_id_dotted_fallback_does_not_break_dashed_models():
     assert _match_catalog_id("claude-opus-4-7", catalog) == "claude-opus-4-7"
 
 
+def test_match_catalog_id_namespaced_last_segment_match():
+    """Half the catalog stores models under provider namespaces
+    (`accounts/fireworks/models/qwen3-235b-a22b`,
+    `meta-llama/Llama-4-Scout-17B-16E-Instruct`,
+    `Qwen/Qwen3-235B-A22B-Instruct-2507-tput`). Without unwrapping the
+    namespace AND case-folding, AA's "Qwen3 235B" → `qwen3-235b` and
+    "Llama 4 Scout" → `llama-4-scout` silently miss every Fireworks /
+    HuggingFace-style entry — entire Llama 4, Qwen3, Yi, Phi families
+    drop out of AA scoring."""
+    from packages.litellm_adapter.quality_index import _match_catalog_id
+
+    catalog = {
+        "accounts/fireworks/models/qwen3-235b-a22b",
+        "Qwen/Qwen3-235B-A22B-Instruct-2507-tput",
+        "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+        "accounts/fireworks/models/llama4-maverick-instruct-basic",
+        # A non-namespaced model that should still take exact-match
+        # priority over any namespaced family-segment cousin.
+        "qwen3-235b",
+    }
+    # Plain bare match still wins (exact > namespaced)
+    assert _match_catalog_id("qwen3-235b", catalog) == "qwen3-235b"
+
+    # Namespaced family match — last segment starts with `qwen3-32b-`?
+    # No exact match here; family-segment hits the namespaced row.
+    assert _match_catalog_id(
+        "qwen3-235b-a22b",
+        {"accounts/fireworks/models/qwen3-235b-a22b"},
+    ) == "accounts/fireworks/models/qwen3-235b-a22b"
+
+    # Llama 4 Scout: catalog stores it under meta-llama/ namespace with
+    # mixed case — the lowercase last-segment family scan must catch it.
+    assert _match_catalog_id(
+        "llama-4-scout",
+        {"meta-llama/Llama-4-Scout-17B-16E-Instruct"},
+    ) == "meta-llama/Llama-4-Scout-17B-16E-Instruct"
+
+
+def test_match_catalog_id_last_segment_does_not_override_exact_match():
+    """An exact match in the bare-id namespace must always win over a
+    namespaced family-segment hit. Otherwise `Mistral Large` could be
+    routed to a random `accounts/...` namespaced variant when the
+    canonical bare entry is also in the catalog."""
+    from packages.litellm_adapter.quality_index import _match_catalog_id
+
+    catalog = {
+        "mistral-large",                                # canonical bare
+        "accounts/fireworks/models/mistral-large-2407", # namespaced family
+    }
+    assert _match_catalog_id("mistral-large", catalog) == "mistral-large"
+
+
+def test_match_catalog_id_dotted_last_segment_picks_deterministically():
+    """Codex review of PR #28 caught a non-determinism bug: when multiple
+    namespaced models share a dotted last-segment family (eg two providers
+    both exposing `.../qwen3.5-...` variants), the matcher picked one via
+    raw `set` iteration → process-hash-order dependent → different runs
+    routed AA metrics to different catalog ids → flaky tests + unstable
+    routing across restarts. Fix collects all hits and uses sorted()[0]
+    same as the earlier match passes.
+
+    This test plants four equally-valid namespaced family hits in a set
+    and asserts the matcher picks the lexicographic-first across runs.
+    Without the sort, set-iteration order would surface here."""
+    from packages.litellm_adapter.quality_index import _match_catalog_id
+
+    catalog = {
+        "providerB/qwen3.5-235b-instruct",
+        "providerA/qwen3.5-32b-instruct",
+        "providerC/qwen3.5-72b-instruct",
+        "accounts/fireworks/models/qwen3.5-distill",
+    }
+    # Run several times; the result must be stable within a process AND
+    # match the explicit sort order. (Cross-process determinism is what
+    # the underlying fix is about — sorted() guarantees both.)
+    expected = sorted(catalog)[0]
+    for _ in range(5):
+        assert _match_catalog_id("qwen3-5", catalog) == expected, (
+            "dotted last-segment fallback must pick sorted-first hit, "
+            "not whatever set iteration yields this run"
+        )
+
+
+def test_match_catalog_id_dotted_last_segment_exact_beats_family():
+    """Within the dotted-last-segment fallback, an exact-segment match
+    must take precedence over a family-segment match (mirrors the
+    bare-side ordering — exact_segment_hits checked before
+    family_segment_hits)."""
+    from packages.litellm_adapter.quality_index import _match_catalog_id
+
+    catalog = {
+        # Family-segment-only (would match if we didn't prefer exact)
+        "ns/qwen3.5-instruct-72b",
+        # Exact dotted last-segment match
+        "other-ns/qwen3.5",
+    }
+    assert _match_catalog_id("qwen3-5", catalog) == "other-ns/qwen3.5"
+
+
 # ── three-axis aggregation: max quality, max TPS, min TTFT ─────────────
 
 
