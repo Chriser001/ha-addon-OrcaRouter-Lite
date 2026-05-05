@@ -8,7 +8,6 @@ response in OpenAI's `text/event-stream` format with a terminal
 from __future__ import annotations
 
 import json
-import re
 import time
 import uuid
 from collections.abc import AsyncGenerator, AsyncIterable
@@ -19,14 +18,19 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import prompt_cache, router_cache
-from app.auto_routing import choose_auto_model, required_capabilities
+from app.auto_routing import (
+    _VERSION_SUFFIX_RE,
+    canonical_model_base,
+    choose_auto_model,
+    required_capabilities,
+)
 from app.config import get_settings
 from app.deps import get_db, get_key_context
 from app.quality_scores import resolve_quality_scores
 from app.schemas import ChatCompletionRequest
 from packages.auth.types import KeyContext
 from packages.db.models.request_log import RequestLog
-from packages.litellm_adapter.catalog import CATALOG
+from packages.litellm_adapter.catalog import CATALOG, CATALOG_BY_ID
 from packages.litellm_adapter.types import UpstreamProviderError
 
 logger = structlog.get_logger()
@@ -40,30 +44,6 @@ def _chunk_to_dict(chunk) -> dict:
     if hasattr(chunk, "model_dump"):
         return chunk.model_dump(exclude_none=True)
     return dict(chunk)
-
-
-# Suffix shapes that mark a response model as a more-specific *version* of the
-# requested model rather than a different one. Matched against the substring
-# AFTER `requested_group + "-"` in the served name.
-#   "2024-08-06"   — OpenAI dated version
-#   "20241022"     — Anthropic dated version (compact form)
-#   "001" / "002"  — Google Vertex / Gemini revision suffix
-#   "v1.5"         — explicit semver-like version
-#
-# Deliberately excluded:
-#   "preview"      — too ambiguous. "gpt-4-turbo-preview" is a distinct
-#                    catalog model from "gpt-4-turbo", not a version variant.
-#   "latest"       — providers don't return "-latest" in response.model;
-#                    it's only a request-side alias.
-#   "mini" / etc.  — branding suffixes, not versions.
-_VERSION_SUFFIX_RE = re.compile(
-    r"^("
-    r"\d{4}-\d{2}-\d{2}"     # YYYY-MM-DD
-    r"|\d{6,}"                # YYYYMMDD or compact dates / build numbers
-    r"|\d{1,4}"               # 001, 002, 1, 12, ...
-    r"|v\d[\d.]*"             # v1, v1.5, v2.0.1
-    r")$"
-)
 
 
 def _served_same_group_as_requested(
@@ -149,9 +129,11 @@ async def _build_log_row(
     Router cascaded to a fallback after a 404 / cooldown.
     """
     latency_ms = int((time.perf_counter() - started_perf) * 1000)
-    meta = response.get("_orca_meta", {})
+    meta = response.get("_orca_meta", {}) or {}
     usage = response.get("usage", {}) or {}
     resolved = actual_resolved or response.get("model") or requested_model
+    input_t = usage.get("prompt_tokens", 0) or 0
+    output_t = usage.get("completion_tokens", 0) or 0
     return RequestLog(
         workspace_id=str(kc.workspace_id),
         api_key_id=str(kc.key_id),
@@ -160,14 +142,99 @@ async def _build_log_row(
         model_resolved=resolved,
         provider=meta.get("provider", "unknown"),
         routing_strategy=strategy,
-        input_tokens=usage.get("prompt_tokens", 0),
-        output_tokens=usage.get("completion_tokens", 0),
-        cost_microcents=0,
+        input_tokens=input_t,
+        output_tokens=output_t,
+        cost_microcents=_compute_cost_microcents(
+            litellm_cost_usd=meta.get("cost_usd"),
+            model_id=resolved,
+            input_tokens=input_t,
+            output_tokens=output_t,
+            fallback_model=requested_model,
+        ),
         latency_ms=meta.get("latency_ms", latency_ms),
         status_code=status_code,
         error_type=error_type,
         is_streaming=body.stream,
     )
+
+
+def _compute_cost_microcents(
+    *,
+    litellm_cost_usd: float | None,
+    model_id: str | None,
+    input_tokens: int,
+    output_tokens: int,
+    fallback_model: str | None = None,
+) -> int:
+    """Cost in microcents (1 USD = 1,000,000).
+
+    Two-tier strategy:
+
+      Tier 1 — `litellm_cost_usd` from the response's _orca_meta. This is
+      LiteLLM's own `_hidden_params.response_cost`, computed in the adapter
+      at the moment LiteLLM Router knew which provider it actually called.
+      Authoritative because it includes:
+        - Anthropic prompt caching (cache_creation = 1.25x base,
+          cache_read = 0.1x base)
+        - OpenAI o1/o3 reasoning tokens (priced separately from output)
+        - Audio input/output token pricing
+        - Provider-specific aliasing — no name-matching guesswork needed
+      We do NOT call `litellm.completion_cost(response)` here: that helper
+      tries to re-derive the provider from the response dict and fails on
+      Anthropic/Gemini bare names ("Provider NOT provided" or
+      "model isn't mapped"), so reverse-lookup is unreliable.
+
+      Tier 2 — `tokens × catalog price` fallback. Used when LiteLLM didn't
+      attach a cost (cache hit served from our prompt cache, exception
+      paths where `_orca_meta` is absent, custom upstreams). Walks four
+      catalog id shapes: as-is, prefix-stripped, version-suffix-stripped,
+      then the original requested model id.
+
+    Returns 0 only when both tiers miss. Negative tokens / negative cost
+    are clamped to 0 (defensive against malformed upstream usage data).
+    """
+    if input_tokens < 0 or output_tokens < 0:
+        return 0
+
+    # Tier 1: LiteLLM's authoritative number, plumbed through _orca_meta.
+    if litellm_cost_usd is not None and litellm_cost_usd > 0:
+        return max(0, int(litellm_cost_usd * 1_000_000))
+
+    # Tier 2: catalog × tokens fallback.
+    m = _lookup_priced_model(model_id) or _lookup_priced_model(fallback_model)
+    if m is None:
+        return 0
+    cost_usd = (
+        input_tokens * m.input_cost_per_token
+        + output_tokens * m.output_cost_per_token
+    )
+    return max(0, int(cost_usd * 1_000_000))
+
+
+def _lookup_priced_model(model_id: str | None):
+    """Try four id-shape variants, return the first catalog hit or None.
+
+    Order:
+      1. as-is
+      2. provider-prefix stripped ("openai/gpt-4o" -> "gpt-4o")
+      3. version-suffix stripped (handles "claude-3-5-sonnet-20241022" ->
+         "claude-3-5-sonnet" when the response was a dated alias and only
+         the base form is in our catalog)
+    """
+    if not model_id:
+        return None
+    m = CATALOG_BY_ID.get(model_id)
+    if m is not None:
+        return m
+    bare = model_id.split("/", 1)[-1] if "/" in model_id else model_id
+    if bare != model_id:
+        m = CATALOG_BY_ID.get(bare)
+        if m is not None:
+            return m
+    base = canonical_model_base(bare)
+    if base != bare:
+        return CATALOG_BY_ID.get(base)
+    return None
 
 
 @router.post("/chat/completions")
@@ -372,6 +439,17 @@ async def chat_completions(
     # mid-flight cascade is impossible — we have to surface the error and let
     # the client decide what to do.
     if body.stream:
+        # Auto-inject `stream_options.include_usage=True` if the client
+        # didn't set it. Without this, OpenAI/LiteLLM streaming responses
+        # omit the `usage` field entirely — chunks have no token counts,
+        # so our log row gets input=0, output=0 and the cost calculation
+        # rounds to zero. Almost no client knows to opt-in to this flag,
+        # which would silently zero out streaming spend in the dashboard.
+        # Honor an explicit `include_usage=False` from the client if they
+        # really want to disable it (e.g. wire-format compatibility tests).
+        existing_so = completion_kwargs.get("stream_options") or {}
+        if "include_usage" not in existing_so:
+            completion_kwargs["stream_options"] = {**existing_so, "include_usage": True}
         try:
             stream_obj = await client.acompletion(
                 **completion_kwargs,
