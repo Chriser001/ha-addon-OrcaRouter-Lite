@@ -1,0 +1,55 @@
+# Fly.io app configuration for OrcaRouter-Lite.
+#
+# Fly app names are globally unique. `fly launch` will accept the committed
+# `orcarouter-lite` if available; if it's already taken, it prompts for an
+# alternative and rewrites this file in place — no manual edit needed.
+#
+# First-time flow:
+#   fly auth login
+#   fly launch --no-deploy
+#   fly volumes create lite_data --size 1 --region iad
+#   fly secrets set CREDENTIAL_ENCRYPTION_KEY=$(openssl rand -hex 32)
+#   fly secrets set API_KEY_PEPPER=$(openssl rand -hex 32)
+#   fly secrets set OPENAI_API_KEY=sk-...   # optional
+#   fly deploy
+#
+# Subsequent deploys: `fly deploy`. Secrets are injected at runtime — they
+# never enter the image (same model as docker-compose's env_file).
+
+app = "orcarouter-lite"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8000"
+  HOST = "0.0.0.0"
+  # Four slashes: `sqlite+aiosqlite:` + `///` (protocol) + `/data/orca.db` (absolute path).
+  # The `/data` mount point matches the [mounts] block below.
+  DATABASE_URL = "sqlite+aiosqlite:////data/orca.db"
+
+[mounts]
+  source = "lite_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Stop the machine when idle to control cost; auto-start on next request.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
