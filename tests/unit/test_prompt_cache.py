@@ -1,8 +1,9 @@
 """Cross-provider prompt cache.
 
 LiteLLM only does prompt caching for Anthropic. Lite ships an exact-match
-cache that works for any provider — same (model, messages, temperature,
-tools, response_format, seed) → cached response, no upstream call.
+cache that works for any provider — same request inputs (every parameter
+that shapes the completion, not just the prompt) → cached response, no
+upstream call.
 
 Backed by Redis when REDIS_URL is set, falls back to an in-process LRU
 otherwise so it works in single-pod docker-compose / on a laptop.
@@ -69,20 +70,96 @@ def test_cache_key_differs_on_model():
     assert a != b
 
 
+@pytest.mark.parametrize("field,other", [
+    ("max_tokens", 4096),
+    ("stop", ["END"]),
+    ("tool_choice", {"type": "function", "function": {"name": "f"}}),
+    ("top_p", 0.5),
+    ("n", 2),
+    # Both shift the logits before decoding, so they change the output
+    # even at temperature 0 — the only case that is cacheable at all.
+    ("presence_penalty", 1.5),
+    ("frequency_penalty", 1.5),
+])
+def test_cache_key_differs_on_every_output_shaping_parameter(field, other):
+    """Regression: the key covered only model/messages/temperature/tools/
+    response_format/seed, so two requests differing solely in max_tokens,
+    stop or tool_choice collided — the second was served the first's
+    response (truncated, or prose where a tool call was forced). The
+    native surfaces send these on every request."""
+    from app.prompt_cache import cache_key
+
+    base = dict(
+        model="m", messages=[{"role": "user", "content": "hi"}],
+        temperature=0.0, tools=None, response_format=None, seed=None,
+    )
+    assert cache_key(**base) != cache_key(**base, **{field: other})
+
+
+def test_cache_key_distinguishes_absent_temperature_from_explicit_zero():
+    """Regression: an absent temperature was normalized to 0.0 in the key.
+    Both forms are cacheable when a seed pins them, but they are different
+    computations — the upstream defaults an absent temperature to 1.0 (a
+    seeded sample) while 0 is the greedy argmax — so sharing one entry
+    served one caller the other's response."""
+    from app.prompt_cache import cache_key
+
+    base = dict(
+        model="m", messages=[{"role": "user", "content": "hi"}],
+        tools=None, response_format=None, seed=7,
+    )
+    assert cache_key(**base, temperature=None) != cache_key(**base, temperature=0.0)
+
+
+def test_cache_key_ignores_user_identifier():
+    """`user` is an abuse-monitoring hint that does not change the
+    completion; keying on it would fragment the cache per caller."""
+    import inspect
+
+    from app.prompt_cache import cache_key
+
+    # `user` is not even an input to the key — the caller (chat.py) cannot
+    # feed it in by accident, so two callers' identical requests share.
+    assert "user" not in inspect.signature(cache_key).parameters
+    base = dict(
+        model="m", messages=[{"role": "user", "content": "hi"}],
+        temperature=0.0, tools=None, response_format=None, seed=None,
+        max_tokens=64,
+    )
+    with pytest.raises(TypeError):
+        cache_key(**base, user="alice")
+
+
 def test_should_cache_skips_streaming_and_high_temperature():
     """We only cache deterministic, non-streaming requests."""
     from app.prompt_cache import is_cacheable
 
     base = {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "hi"}]}
 
-    # Cacheable: temp=0 (or unset, defaults to 0 for safety) and not streaming
+    # Cacheable: an explicit temp=0, not streaming
     assert is_cacheable({**base, "temperature": 0.0, "stream": False}) is True
-    assert is_cacheable({**base, "stream": False}) is True  # temp unset → treat as deterministic
+    assert is_cacheable({**base, "temperature": 0, "stream": False}) is True
 
     # Not cacheable
     assert is_cacheable({**base, "stream": True}) is False
     assert is_cacheable({**base, "temperature": 0.7}) is False
     assert is_cacheable({**base, "temperature": 0.1}) is False
+
+
+def test_absent_temperature_is_not_treated_as_deterministic():
+    """Regression: an omitted temperature was assumed to be 0. Every
+    upstream defaults it to 1.0 (OpenAI, Anthropic, Gemini), so the
+    response is a sample — caching it replays one arbitrary sample to
+    every later caller. The native surfaces only forward a temperature
+    the client actually sent, and Claude Code never sends one, so this
+    was the default path for the new ingress."""
+    from app.prompt_cache import is_cacheable
+
+    base = {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "hi"}]}
+    assert is_cacheable(base) is False
+    assert is_cacheable({**base, "temperature": None}) is False
+    # ...unless a seed pins the sample
+    assert is_cacheable({**base, "seed": 7}) is True
 
 
 def test_should_cache_skips_when_seed_unspecified_with_high_temp():

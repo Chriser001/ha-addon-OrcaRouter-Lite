@@ -1,9 +1,9 @@
 """Cross-provider prompt cache.
 
 LiteLLM only does prompt caching for Anthropic. This module ships an
-exact-match cache that works for any provider — same `(model, messages,
-temperature, tools, response_format, seed)` → cached response, no upstream
-call.
+exact-match cache that works for any provider — same request inputs →
+cached response, no upstream call. "Same inputs" means every parameter
+that shapes the completion (see `cache_key`), not just the prompt.
 
 Two backends, picked at startup:
   - Redis (when REDIS_URL is set) — survives restarts, works across pods.
@@ -33,15 +33,50 @@ def cache_key(
     tools: list[dict] | None,
     response_format: dict | None,
     seed: int | None,
+    max_tokens: int | None = None,
+    stop: str | list[str] | None = None,
+    tool_choice: str | dict | None = None,
+    top_p: float | None = None,
+    n: int | None = None,
+    presence_penalty: float | None = None,
+    frequency_penalty: float | None = None,
 ) -> str:
-    """Deterministic SHA-256 key for the cacheable inputs."""
+    """Deterministic SHA-256 key over every input that shapes the output.
+
+    All the output-shaping parameters belong here, not just the prompt:
+    two requests that differ only in `max_tokens` (64 vs 4096), `stop`, or
+    `tool_choice` (auto vs a forced function) produce genuinely different
+    completions, so sharing one cache entry between them would serve a
+    truncated answer, or prose where the caller demanded a tool call. The
+    native Anthropic surface sends `max_tokens` on every request and both
+    native surfaces pass stop/tool_choice through, so a narrower key is
+    reachable in normal use.
+
+    `user` is deliberately excluded: it is an abuse-monitoring hint that
+    does not change the completion, and keying on it would fragment the
+    cache per caller for no correctness gain.
+    """
     payload = {
         "model": model,
         "messages": messages,
-        "temperature": temperature if temperature is not None else 0.0,
+        # Keyed on the true wire value: an ABSENT temperature is not the
+        # same computation as an explicit 0. Both are cacheable when a
+        # seed pins them, but the upstream defaults an absent one to 1.0
+        # (a seeded sample) while 0 is the greedy argmax — normalizing
+        # None to 0.0 here would serve one caller the other's response.
+        "temperature": temperature,
         "tools": tools or None,
         "response_format": response_format or None,
         "seed": seed,
+        "max_tokens": max_tokens,
+        "stop": stop,
+        "tool_choice": tool_choice,
+        "top_p": top_p,
+        "n": n,
+        # Both shift the logits before decoding, so they change the output
+        # even at temperature 0 — exactly when a request is cacheable.
+        "presence_penalty": presence_penalty,
+        "frequency_penalty": frequency_penalty,
     }
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(blob).hexdigest()
@@ -52,16 +87,23 @@ def is_cacheable(body: dict) -> bool:
 
     - Streaming responses are skipped (caching SSE chunks correctly is more
       trouble than it's worth for v1).
-    - Non-zero temperature without an explicit seed → non-deterministic, skip.
+    - temperature == 0 → deterministic.
+    - Any other temperature, INCLUDING AN ABSENT ONE, needs an explicit
+      seed. Every upstream this proxies defaults temperature to 1.0 —
+      OpenAI, Anthropic and Gemini alike — so a request that omits it is
+      sampled, not deterministic, and caching it would replay one
+      arbitrary sample to every later caller. That is not a hypothetical
+      on the native surfaces: their translators only set temperature when
+      the wire request carried it, and Claude Code never sends one, so
+      omission is the norm there. An agent retrying an identical call
+      would keep getting the same stale answer.
     - With a seed, any temperature is fine — the seed pins the output.
     """
     if body.get("stream"):
         return False
-    temperature = body.get("temperature", 0.0) or 0.0
-    seed = body.get("seed")
-    if temperature == 0.0:
+    if body.get("temperature") == 0:
         return True
-    return seed is not None
+    return body.get("seed") is not None
 
 
 # ── Backends ──────────────────────────────────────────────────────────

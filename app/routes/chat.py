@@ -11,7 +11,7 @@ import asyncio
 import json
 import time
 import uuid
-from collections.abc import AsyncGenerator, AsyncIterable
+from collections.abc import AsyncGenerator, AsyncIterable, Callable
 
 import anyio
 import structlog
@@ -28,6 +28,7 @@ from app.auto_routing import (
 )
 from app.config import get_settings
 from app.deps import get_db, get_key_context
+from app.protocols.sse import AdapterError
 from app.quality_scores import resolve_model_metrics
 from app.schemas import ChatCompletionRequest
 from packages.auth.types import KeyContext
@@ -37,6 +38,19 @@ from packages.litellm_adapter.types import UpstreamProviderError
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/v1", tags=["Chat Completions"])
+
+# Relays the engine's translated error type (rate_limit_error,
+# model_not_found, ...) on engine-raised HTTPExceptions so the
+# native-protocol routes can re-render the failure in their own
+# status/error taxonomy.
+ERROR_TYPE_HEADER = "x-orca-error-type"
+
+# Delays (seconds) between successive attempts to commit a streaming
+# RequestLog row; attempts = len + 1. That row is the only record of a
+# stream's tokens and cost, so a commit that fails outright is retried on
+# a fresh session before the row is given up on — bounded, because the
+# retries hold the (already [DONE]) stream open. Tests shrink this.
+_LOG_COMMIT_BACKOFF_S: tuple[float, ...] = (0.1, 0.4)
 
 
 def _chunk_to_dict(chunk) -> dict:
@@ -246,6 +260,31 @@ async def chat_completions(
     kc: KeyContext = Depends(get_key_context),
     db: AsyncSession = Depends(get_db),
 ):
+    return await execute_chat(body, kc, db)
+
+
+async def execute_chat(
+    body: ChatCompletionRequest,
+    kc: KeyContext,
+    db: AsyncSession,
+    *,
+    log_status: Callable[[int, str | None], int] | None = None,
+) -> JSONResponse | StreamingResponse:
+    """Protocol-agnostic chat engine — the full pipeline behind
+    POST /v1/chat/completions (allowlist → auto-resolution → prompt cache →
+    LiteLLM Router → RequestLog writeback), reusable by native-protocol
+    adapters (Anthropic /v1/messages, Gemini /v1beta) with a translated body.
+
+    Returns OpenAI-wire-format results: JSONResponse for blocking requests,
+    StreamingResponse emitting `data: {json}\\n\\n` frames with a terminal
+    `data: [DONE]` for streaming. Raises HTTPException on pre-stream errors.
+
+    `log_status(engine_status, error_type)` lets a native-protocol caller
+    record in the RequestLog the status IT will deliver for an upstream
+    failure (e.g. 404 for model_not_found where this engine says 422), on
+    both the blocking and the streaming path, so the persisted outcome
+    matches what went over the wire.
+    """
     # Capture client intent before any mutation so the request log and the
     # `x-orca-requested-model` header always reflect what the user asked for,
     # not the post-resolution primary.
@@ -292,6 +331,11 @@ async def chat_completions(
                     "model='auto' requires at least one provider with a "
                     "configured key. No deployable provider found."
                 ),
+                # Same operator-side, permanent condition the pinned-model
+                # path reports as no_providers_configured. Without the
+                # type the native surfaces would collapse this 422 to a
+                # client-blaming 400 while the pinned path renders 403.
+                headers={ERROR_TYPE_HEADER: "no_providers_configured"},
             )
         # `quality`, `balanced`, `fastest` all want AA-derived metrics.
         # `resolve_model_metrics` does the AA fetch + merges manual
@@ -363,6 +407,14 @@ async def chat_completions(
                     f"({sorted(needs) or 'none'}). Configure a provider that "
                     "supports them or pin a specific model."
                 ),
+                # Operator-side and permanent like its sibling above:
+                # providers ARE configured, but none of their deployable
+                # models has a capability the request needs (vision, tools,
+                # json_mode). The type lets the native surfaces render it
+                # as 403 permission_error / PERMISSION_DENIED — the same
+                # class as no_providers_configured — instead of collapsing
+                # the bare 422 to a client-blaming 400.
+                headers={ERROR_TYPE_HEADER: "no_capable_provider"},
             )
 
         resolved_model = candidates[0]
@@ -401,6 +453,13 @@ async def chat_completions(
             tools=completion_kwargs.get("tools"),
             response_format=completion_kwargs.get("response_format"),
             seed=completion_kwargs.get("seed"),
+            max_tokens=completion_kwargs.get("max_tokens"),
+            stop=completion_kwargs.get("stop"),
+            tool_choice=completion_kwargs.get("tool_choice"),
+            top_p=completion_kwargs.get("top_p"),
+            n=completion_kwargs.get("n"),
+            presence_penalty=completion_kwargs.get("presence_penalty"),
+            frequency_penalty=completion_kwargs.get("frequency_penalty"),
         )
         cached = await prompt_cache.get_backend().get(cache_lookup_key)
         if cached is not None:
@@ -461,6 +520,32 @@ async def chat_completions(
         existing_so = completion_kwargs.get("stream_options") or {}
         if "include_usage" not in existing_so:
             completion_kwargs["stream_options"] = {**existing_so, "include_usage": True}
+
+        async def _log_pre_stream_failure(status: int, err_type: str | None) -> None:
+            """Persist a row for a stream that failed BEFORE its first chunk.
+
+            The mid-stream path logs from `_finalize` and the blocking path
+            from its `finally`, but this failure happens between them: the
+            client is rendered a real 404/429/403/503 and nothing recorded
+            it, so the same upstream failure was accounted for when
+            stream=false and vanished when stream=true.
+            """
+            if log_status is not None and err_type is not None:
+                status = log_status(status, err_type)
+            log = await _build_log_row(
+                body=body, kc=kc, response={},
+                status_code=status, error_type=err_type,
+                started_perf=started_perf,
+                strategy=strategy,
+                requested_model=requested_model,
+                actual_resolved=resolved_model,
+            )
+            db.add(log)
+            try:
+                await db.commit()
+            except Exception as commit_err:
+                logger.warning("request_log_commit_failed", error=str(commit_err))
+
         try:
             stream_obj = await client.acompletion(
                 **completion_kwargs,
@@ -471,12 +556,18 @@ async def chat_completions(
             raise
         except UpstreamProviderError as exc:
             logger.warning("chat_completion_upstream_error", error=str(exc))
+            await _log_pre_stream_failure(exc.http_status, exc.error_type)
             raise HTTPException(
                 status_code=exc.http_status,
                 detail=f"Upstream provider error: {exc}",
+                # The generic HTTP status alone loses the translated type
+                # (e.g. model_not_found is 422 here but 404 on the
+                # Anthropic/Gemini surfaces).
+                headers={ERROR_TYPE_HEADER: exc.error_type},
             ) from exc
         except Exception as exc:
             logger.warning("chat_completion_upstream_error", error=str(exc))
+            await _log_pre_stream_failure(503, type(exc).__name__)
             raise HTTPException(status_code=503, detail=f"Upstream provider error: {exc}") from exc
 
         async def sse() -> AsyncGenerator[str, None]:
@@ -503,7 +594,6 @@ async def chat_completions(
                 nonlocal log_written, agg_provider
                 if log_written:
                     return
-                log_written = True
                 # Real LiteLLM stream chunks don't carry _orca_meta (the
                 # adapter only injects it on non-stream responses, since
                 # wrapping every chunk would be wasteful). Look up provider
@@ -521,31 +611,153 @@ async def chat_completions(
                 synthetic = {
                     "model": agg_model or resolved_model,
                     "usage": agg_usage,
-                    "_orca_meta": {"provider": agg_provider, "latency_ms": agg_latency},
+                    "_orca_meta": {"provider": agg_provider},
                 }
-                log = await _build_log_row(
+                if agg_latency:
+                    # Real LiteLLM chunks carry no _orca_meta, so this is
+                    # normally absent — leaving the key out lets
+                    # _build_log_row fall back to the measured wall-clock
+                    # latency instead of persisting a constant 0.
+                    synthetic["_orca_meta"]["latency_ms"] = agg_latency
+                from sqlalchemy import select
+
+                from packages.db import session as session_mod
+
+                # The row's VALUES are computed exactly once — latency is
+                # measured here, before any commit attempt, so retry
+                # backoff never inflates it — and every attempt inserts a
+                # fresh ORM object carrying the same id/trace_id. (Fresh,
+                # because an object left over from a failed flush carries
+                # session state that makes a second session treat it as
+                # an UPDATE, not an INSERT.)
+                # Same correction the blocking path applies: on a native
+                # surface the delivered status differs from the engine's
+                # generic one (the Gemini aggregate stream renders a real
+                # 404/429/403 from the error chunk; the SSE surfaces report
+                # the same class in their in-band error frame), so the row
+                # must not say 503 for a response the client saw as 404.
+                row_status = status_code
+                if log_status is not None and error_type is not None:
+                    row_status = log_status(status_code, error_type)
+                template = await _build_log_row(
                     body=body, kc=kc, response=synthetic,
-                    status_code=status_code, error_type=error_type,
+                    status_code=row_status, error_type=error_type,
                     started_perf=started_perf,
                     strategy=strategy,
                     requested_model=requested_model,
                     actual_resolved=agg_model,
                 )
-                from packages.db import session as session_mod
+                row_values = {
+                    c.key: getattr(template, c.key)
+                    for c in RequestLog.__table__.columns
+                    if getattr(template, c.key) is not None
+                }
+                row_values.setdefault("id", str(uuid.uuid4()))
 
-                if session_mod._session_factory is not None:
+                async def _already_persisted(s) -> bool:
+                    return (await s.scalar(
+                        select(RequestLog.id).where(RequestLog.trace_id == row_values["trace_id"])
+                    )) is not None
+
+                async def _commit_row(*, retry: bool) -> None:
+                    """INSERT + COMMIT the row on a session of its own.
+
+                    Only a failing `commit()` propagates; a failure while
+                    closing the session AFTER the commit returned is
+                    swallowed — the row is already in. A retry is
+                    idempotent: it first looks the trace_id up, so a COMMIT
+                    that landed but whose ack was lost on the wire
+                    (PostgreSQL, connection dropped mid-ack) is not
+                    inserted a second time — and the shared primary key
+                    would reject a duplicate anyway.
+                    """
+                    log = RequestLog(**row_values)
+                    if session_mod._session_factory is None:
+                        # Test-only fallback (the app always installs a
+                        # factory): the request-scoped session has to be
+                        # rolled back before a retry can reuse it.
+                        if retry and await _already_persisted(db):
+                            return
+                        db.add(log)
+                        try:
+                            await db.commit()
+                        except Exception:
+                            try:
+                                await db.rollback()
+                            except Exception:
+                                pass
+                            raise
+                        return
+                    s = session_mod._session_factory()
                     try:
-                        async with session_mod._session_factory() as s:
-                            s.add(log)
-                            await s.commit()
-                    except Exception as commit_err:
-                        logger.warning("request_log_commit_failed", error=str(commit_err))
-                else:
-                    db.add(log)
+                        if retry and await _already_persisted(s):
+                            return
+                        s.add(log)
+                        await s.commit()
+                    finally:
+                        try:
+                            await s.close()
+                        except Exception as close_err:
+                            logger.debug(
+                                "request_log_session_close_failed", error=str(close_err),
+                            )
+
+                # At-most-once across the two call sites: mark BEFORE the
+                # first attempt so the other _finalize never re-runs this
+                # sequence. Retries live HERE, bounded by
+                # _LOG_COMMIT_BACKOFF_S and only for a commit that failed
+                # outright — this row is the only record of a stream's
+                # tokens and cost, so a transient DB hiccup at request end
+                # must not silently zero that spend. Durability against a
+                # close/cancel landing mid-commit (e.g. a disconnect
+                # delivered during the protocol adapters' post-[DONE]
+                # drain) comes from running each attempt in its own task:
+                # cancellation aimed at THIS task can't abort the INSERT.
+                log_written = True
+                attempts = len(_LOG_COMMIT_BACKOFF_S) + 1
+                for attempt in range(1, attempts + 1):
+                    commit_task = asyncio.ensure_future(_commit_row(retry=attempt > 1))
                     try:
-                        await db.commit()
+                        await asyncio.shield(commit_task)
+                        return
                     except Exception as commit_err:
-                        logger.warning("request_log_commit_failed", error=str(commit_err))
+                        if attempt < attempts:
+                            logger.info(
+                                "request_log_commit_retry",
+                                error=str(commit_err), attempt=attempt,
+                            )
+                            try:
+                                await asyncio.sleep(_LOG_COMMIT_BACKOFF_S[attempt - 1])
+                            except BaseException:
+                                # Cancelled during the backoff: nothing is
+                                # in flight, the row is given up on — say
+                                # so, then propagate like the arm below.
+                                logger.warning(
+                                    "request_log_commit_failed",
+                                    error=str(commit_err), attempts=attempt,
+                                )
+                                raise
+                            continue
+                        logger.warning(
+                            "request_log_commit_failed",
+                            error=str(commit_err), attempts=attempt,
+                        )
+                    except BaseException:
+                        # CancelledError aimed at us, not at the commit —
+                        # wait the in-flight attempt out so a row about to
+                        # land isn't dropped, then let the cancellation
+                        # propagate (no further attempts: we are being torn
+                        # down).
+                        try:
+                            await commit_task
+                        except Exception as commit_err:
+                            logger.warning(
+                                "request_log_commit_failed",
+                                error=str(commit_err), attempts=attempt,
+                            )
+                        except BaseException:
+                            pass
+                        raise
 
             try:
                 async for chunk in _aiter(stream_obj):
@@ -606,6 +818,25 @@ async def chat_completions(
                         pass
                 # Re-raise so asyncio/Starlette see proper cancel propagation.
                 raise
+            except AdapterError:
+                # The protocol adapter downstream of us failed and threw
+                # this in rather than closing us: our own fault, not the
+                # caller's. Without this branch the close would be
+                # indistinguishable from a disconnect and every adapter bug
+                # would be filed as 499/client_disconnect.
+                error_type = "adapter_error"
+                status_code = 500
+                logger.warning(
+                    "chat_completion_stream_adapter_error", served_model=agg_model,
+                )
+                aclose = getattr(stream_obj, "aclose", None)
+                with anyio.CancelScope(shield=True):
+                    if aclose is not None:
+                        try:
+                            await aclose()
+                        except Exception:
+                            pass
+                return
             except Exception as exc:
                 # Translate the underlying LiteLLM exception so the request
                 # log records the meaningful error_type (rate_limit_error,
@@ -696,6 +927,9 @@ async def chat_completions(
         raise HTTPException(
             status_code=exc.http_status,
             detail=f"Upstream provider error: {exc}",
+            # See the streaming-path twin: lets the native routes map the
+            # translated type to their surface's status/error taxonomy.
+            headers={ERROR_TYPE_HEADER: exc.error_type},
         ) from exc
     except Exception as exc:
         status_code = 503
@@ -703,6 +937,8 @@ async def chat_completions(
         logger.warning("chat_completion_upstream_error", error=str(exc))
         raise HTTPException(status_code=503, detail=f"Upstream provider error: {exc}") from exc
     finally:
+        if log_status is not None and error_type is not None:
+            status_code = log_status(status_code, error_type)
         log = await _build_log_row(
             body=body, kc=kc, response=response if isinstance(response, dict) else {},
             status_code=status_code, error_type=error_type,

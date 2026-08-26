@@ -1,0 +1,775 @@
+"""Gemini (Google AI Studio) API ↔ internal OpenAI format translation.
+
+Pure functions + one pure async stream transformer. The caller-visible
+limitations are listed in integrations/gemini-sdk.md; the load-bearing
+mapping decisions are:
+
+- Wire fields are accepted in BOTH camelCase (REST / google-genai SDK)
+  and snake_case (some client serializations).
+- Function-declaration schemas arrive with UPPERCASE proto type enums
+  ("OBJECT", "STRING", ...) — normalized recursively to lowercase
+  JSON-Schema types before they hit the engine.
+- Gemini has no tool-call ids: history `functionCall` parts get synthetic
+  `call_<n>` ids and `functionResponse` parts pair to the earliest
+  unmatched call with the same name (the positional semantics Gemini
+  itself uses).
+- Streaming never emits a partial functionCall: tool-call argument
+  fragments are buffered and flushed as complete parts — as soon as the
+  model moves on to text again, or before the final
+  finishReason/usageMetadata chunk — so the client still sees text and
+  calls in the order the model produced them.
+"""
+
+from __future__ import annotations
+
+import json
+from collections import deque
+from collections.abc import AsyncGenerator, AsyncIterable
+
+import anyio
+import structlog
+from fastapi import HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.protocols import clamp_stop_sequences, require_text
+from app.protocols.anthropic import _args_complete, _parse_json_object, flatten_openai_content
+from app.protocols.sse import finish_quietly
+
+logger = structlog.get_logger()
+
+
+# ── Request schema ─────────────────────────────────────────────────────
+
+class GeminiGenerateRequest(BaseModel):
+    """Wire schema for :generateContent / :streamGenerateContent.
+    Field aliases accept the camelCase REST forms; `populate_by_name`
+    accepts the snake_case forms too. Extra fields tolerated."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    contents: str | dict | list[dict]
+    system_instruction: str | dict | None = Field(default=None, alias="systemInstruction")
+    tools: list[dict] | None = None
+    tool_config: dict | None = Field(default=None, alias="toolConfig")
+    generation_config: dict | None = Field(default=None, alias="generationConfig")
+    safety_settings: list[dict] | None = Field(default=None, alias="safetySettings")
+    cached_content: str | None = Field(default=None, alias="cachedContent")
+
+
+def _invalid(message: str) -> HTTPException:
+    return HTTPException(status_code=400, detail=message)
+
+
+def _alias(d: dict, camel: str, snake: str, default=None):
+    if camel in d:
+        return d[camel]
+    return d.get(snake, default)
+
+
+# ── Request translation (Gemini → OpenAI) ──────────────────────────────
+
+def normalize_gemini_schema(node):
+    """Lowercase Gemini's proto type enums ("OBJECT", "STRING", ...) into
+    JSON-Schema types, recursively. Property names are dict KEYS, so a
+    property literally named "type" is untouched (its value is a schema
+    dict, and only string values under a "type" key are lowered)."""
+    if isinstance(node, list):
+        return [normalize_gemini_schema(x) for x in node]
+    if not isinstance(node, dict):
+        return node
+    out = {}
+    for k, v in node.items():
+        if k == "type" and isinstance(v, str):
+            out[k] = v.lower()
+        elif k == "type" and isinstance(v, list):
+            out[k] = [x.lower() if isinstance(x, str) else normalize_gemini_schema(x) for x in v]
+        else:
+            out[k] = normalize_gemini_schema(v)
+    return out
+
+
+_UNSUPPORTED_TOOL_KEYS = (
+    ("googleSearch", "google_search"),
+    ("googleSearchRetrieval", "google_search_retrieval"),
+    ("codeExecution", "code_execution"),
+    ("urlContext", "url_context"),
+)
+
+# Part keys that only carry thinking metadata (a part made of nothing but
+# these has no translatable payload).
+_THOUGHT_PART_KEYS = {"thought", "thoughtSignature", "thought_signature"}
+
+
+def _translate_tools(tools: list[dict]) -> list[dict]:
+    out: list[dict] = []
+    for tool in tools:
+        for camel, snake in _UNSUPPORTED_TOOL_KEYS:
+            if camel in tool or snake in tool:
+                raise _invalid(
+                    f"Tool '{camel}' is not supported by this endpoint; "
+                    "only functionDeclarations are"
+                )
+        decls = _alias(tool, "functionDeclarations", "function_declarations") or []
+        # Repeated field on the wire, but free-form in our schema: a client
+        # sending a single declaration as a bare object would otherwise
+        # iterate its keys and blow up as a 500 the SDK retries forever.
+        if not isinstance(decls, list):
+            raise _invalid("functionDeclarations must be a list of declarations")
+        for decl in decls:
+            if not isinstance(decl, dict):
+                raise _invalid("each functionDeclaration must be an object")
+            if not isinstance(decl.get("name"), str) or not decl["name"]:
+                raise _invalid("functionDeclaration is missing 'name'")
+            params = _alias(decl, "parameters", "parameters") \
+                or _alias(decl, "parametersJsonSchema", "parameters_json_schema")
+            if params is not None and not isinstance(params, dict):
+                raise _invalid(
+                    f"functionDeclaration '{decl['name']}' has non-object parameters"
+                )
+            description = decl.get("description")
+            if description is not None and not isinstance(description, str):
+                raise _invalid(
+                    f"functionDeclaration '{decl['name']}' has a non-string description"
+                )
+            fn: dict = {
+                "name": decl["name"],
+                "parameters": normalize_gemini_schema(params)
+                if params else {"type": "object", "properties": {}},
+            }
+            if description:
+                fn["description"] = description
+            out.append({"type": "function", "function": fn})
+    return out
+
+
+def _translate_tool_config(tc: dict) -> tuple[str | dict | None, list[str] | None]:
+    """Returns (tool_choice, allowed_function_names).
+
+    `allowed` is non-None only for mode ANY with MULTIPLE names: OpenAI's
+    "required" means "must call SOME tool", so the caller must also
+    constrain the tools list to the allowed subset — otherwise the model
+    may call a function the Gemini caller explicitly excluded. The
+    single-name case needs no filtering (a specific-function tool_choice
+    already pins the call)."""
+    fcc = _alias(tc, "functionCallingConfig", "function_calling_config")
+    if not isinstance(fcc, dict):
+        return None, None
+    # tool_config is free-form in the wire schema — validate the field
+    # types here so malformed input renders as a native 400, not a 500.
+    mode_raw = fcc.get("mode")
+    if mode_raw is not None and not isinstance(mode_raw, str):
+        raise _invalid("functionCallingConfig.mode must be a string")
+    mode = (mode_raw or "").upper()
+    if mode in ("", "MODE_UNSPECIFIED", "AUTO", "VALIDATED"):
+        return "auto", None
+    if mode == "NONE":
+        return "none", None
+    if mode == "ANY":
+        allowed = _alias(fcc, "allowedFunctionNames", "allowed_function_names") or []
+        if not isinstance(allowed, list) or not all(isinstance(n, str) for n in allowed):
+            raise _invalid("functionCallingConfig.allowedFunctionNames must be a list of strings")
+        if len(allowed) == 1:
+            return {"type": "function", "function": {"name": allowed[0]}}, None
+        if allowed:
+            return "required", allowed
+        return "required", None
+    raise _invalid(f"Unsupported functionCallingConfig mode: {mode!r}")
+
+
+def _system_text(si: str | dict) -> str:
+    if isinstance(si, str):
+        return si
+    parts = si.get("parts") or []
+    if isinstance(parts, dict):
+        parts = [parts]
+    texts: list[str] = []
+    dropped = 0
+    for p in parts:
+        if isinstance(p, dict) and "text" in p:
+            # A text part, empty text included — nothing is dropped here.
+            text = require_text(p["text"], field="systemInstruction.parts[].text")
+            if text:
+                texts.append(text)
+        else:
+            dropped += 1
+    if dropped:
+        # systemInstruction is text in every documented use; anything else
+        # has no system-message equivalent to translate to. Log it rather
+        # than dropping caller-supplied context in silence, matching the
+        # Anthropic sibling's anthropic_non_text_system_block_dropped.
+        logger.warning("gemini_non_text_system_part_dropped", count=dropped)
+    return "\n\n".join(texts)
+
+
+class _CallIdAllocator:
+    """Synthesize OpenAI tool_call ids for Gemini's id-less function calls,
+    pairing functionResponse parts to the earliest unmatched call by name."""
+
+    def __init__(self):
+        self._seq = 0
+        self._pending: dict[str, deque[str]] = {}
+
+    def new_call(self, name: str) -> str:
+        self._seq += 1
+        call_id = f"call_{self._seq}"
+        self._pending.setdefault(name, deque()).append(call_id)
+        return call_id
+
+    def match_response(self, name: str) -> str:
+        queue = self._pending.get(name)
+        if queue:
+            return queue.popleft()
+        # Lenient fallback: an orphan functionResponse still translates,
+        # the upstream will surface any mismatch itself.
+        logger.warning("gemini_function_response_unmatched", name=name)
+        return f"call_{name}"
+
+
+def _translate_content(content: dict, ids: _CallIdAllocator) -> list[dict]:
+    raw_parts = content.get("parts") or []
+    if isinstance(raw_parts, dict):
+        raw_parts = [raw_parts]
+
+    role = content.get("role")
+    if not role:
+        # `role` is optional in the REST API. A turn carrying functionCall
+        # parts can only be the model's, so infer that instead of reading
+        # it as a user turn and rejecting the call below — the google-genai
+        # SDK always sets the role, hand-rolled history replay may not.
+        role = "model" if any(
+            isinstance(p, dict) and ("functionCall" in p or "function_call" in p)
+            for p in raw_parts
+        ) else "user"
+    if role not in ("user", "model"):
+        raise _invalid(f"Unsupported content role: {role!r}")
+    is_model = role == "model"
+
+    texts: list[str] = []
+    parts_out: list[dict] = []
+    tool_calls: list[dict] = []
+    tool_messages: list[dict] = []
+    for part in raw_parts:
+        if not isinstance(part, dict):
+            raise _invalid("Content part must be an object")
+        # `thought` and `thoughtSignature` mark model-internal reasoning.
+        # Neither has an internal equivalent, so they are dropped, never
+        # rejected — but both are part METADATA that can sit alongside a
+        # real payload: Google attaches signatures to functionCall parts
+        # and requires them echoed back in history, and `thought` is a
+        # sibling flag of the data union. So only the thought itself goes;
+        # a part carrying a payload keeps it. Dropping the whole part
+        # would silently delete a tool call from the turn — a wrong
+        # answer, not a rejection.
+        if part.get("thought"):
+            part = {k: v for k, v in part.items() if k != "text"}
+        if not set(part) - _THOUGHT_PART_KEYS:
+            # debug, not warning: agentic clients resend full history every
+            # request, so a per-part warning would grow O(n²) over a session.
+            logger.debug("gemini_thought_part_dropped")
+            continue
+        if "text" in part:
+            text = require_text(part["text"], field="parts[].text")
+            texts.append(text)
+            parts_out.append({"type": "text", "text": text})
+        elif "inlineData" in part or "inline_data" in part:
+            if is_model:
+                # An OpenAI assistant message carries text and tool calls,
+                # nothing else, so a model-turn image has no representation.
+                # Reject rather than drop it: the turn would otherwise reach
+                # the upstream missing content the caller sent, and the
+                # model would answer a history that never existed.
+                raise _invalid(
+                    "inlineData parts in a role:'model' content are not supported "
+                    "by this endpoint"
+                )
+            blob = _alias(part, "inlineData", "inline_data") or {}
+            mime = _alias(blob, "mimeType", "mime_type") or "application/octet-stream"
+            parts_out.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{mime};base64,{blob.get('data', '')}"},
+            })
+        elif "functionCall" in part or "function_call" in part:
+            if not is_model:
+                # Only a model turn can carry calls; in a user turn the
+                # call would have nowhere to go and the turn would vanish
+                # from the upstream conversation without a trace — a wrong
+                # answer, not a rejection. Reject like fileData/unknown keys.
+                raise _invalid(
+                    "functionCall parts are only valid in a role:'model' content; "
+                    "return results as functionResponse parts"
+                )
+            fc = _alias(part, "functionCall", "function_call") or {}
+            name = fc.get("name")
+            if not isinstance(name, str) or not name:
+                raise _invalid("functionCall part requires a non-empty string 'name'")
+            tool_calls.append({
+                "id": ids.new_call(name),
+                "type": "function",
+                "function": {"name": name, "arguments": json.dumps(fc.get("args") or {})},
+            })
+        elif "functionResponse" in part or "function_response" in part:
+            if is_model:
+                # Mirror of the functionCall rule: a result belongs to the
+                # caller's turn. In a model turn it would be discarded with
+                # the tool messages AND consume a pending call id, so a
+                # later genuine response for the same name would pair to
+                # the wrong call.
+                raise _invalid(
+                    "functionResponse parts are only valid in a role:'user' content"
+                )
+            fr = _alias(part, "functionResponse", "function_response") or {}
+            name = fr.get("name", "")
+            tool_messages.append({
+                "role": "tool",
+                "tool_call_id": ids.match_response(name),
+                "content": json.dumps(fr.get("response") or {}),
+            })
+        elif "fileData" in part or "file_data" in part:
+            raise _invalid("fileData parts (Files API) are not supported by this endpoint")
+        else:
+            raise _invalid(f"Unsupported content part keys: {sorted(part.keys())!r}")
+
+    if is_model:
+        out: dict = {"role": "assistant", "content": "".join(texts) or None}
+        if tool_calls:
+            out["tool_calls"] = tool_calls
+        if out["content"] is None and not tool_calls:
+            # Same guard as the Anthropic sibling: a model turn with no
+            # representable parts (empty parts echoed back in history,
+            # thought-only turns) must keep content "" — the engine's
+            # exclude_none dump would otherwise send a bare
+            # {"role": "assistant"}, which upstreams reject.
+            out["content"] = ""
+        return [out]
+
+    out_messages = tool_messages
+    if parts_out:
+        if len(parts_out) == 1 and parts_out[0]["type"] == "text":
+            out_messages.append({"role": "user", "content": parts_out[0]["text"]})
+        else:
+            out_messages.append({"role": "user", "content": parts_out})
+    if not out_messages:
+        # Same rule as the Anthropic sibling: an empty `parts` (or a turn
+        # of nothing but dropped thought metadata) would vanish from the
+        # conversation sent upstream, changing the model's input with no
+        # signal to the caller. Reject it instead.
+        raise _invalid("user content produced no parts; 'parts' must be non-empty")
+    return out_messages
+
+
+# generationConfig is free-form on the wire, so its numbers are validated
+# here against the API's documented ranges. Out-of-range values are
+# rejected by the upstream as a BadRequest, which the engine reports as a
+# retryable 500 INTERNAL / 503 UNAVAILABLE — SDKs then back off and retry
+# forever a request that can never succeed. Catching them here keeps the
+# failure an honest native 400.
+
+def _bounded_number(value, *, field: str, low: float, high: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise _invalid(f"{field} must be a number between {low} and {high}")
+    # NaN/inf fail the comparison and land in the same 400.
+    if not low <= value <= high:
+        raise _invalid(f"{field} must be between {low} and {high}")
+    return value
+
+
+def _positive_int(value, *, field: str) -> int:
+    """A budget < 1 can never succeed upstream. JSON numbers may decode as
+    an integral float (100.0), which is accepted and narrowed."""
+    if isinstance(value, bool):
+        ok = False
+    elif isinstance(value, int):
+        ok = value >= 1
+    elif isinstance(value, float):
+        ok = value.is_integer() and value >= 1
+    else:
+        ok = False
+    if not ok:
+        raise _invalid(f"{field} must be an integer >= 1")
+    return int(value)
+
+
+def _apply_generation_config(gc: dict, out: dict) -> None:
+    temperature = gc.get("temperature")
+    if temperature is not None:
+        out["temperature"] = _bounded_number(
+            temperature, field="temperature", low=0.0, high=2.0
+        )
+    top_p = _alias(gc, "topP", "top_p")
+    if top_p is not None:
+        out["top_p"] = _bounded_number(top_p, field="topP", low=0.0, high=1.0)
+    max_tokens = _alias(gc, "maxOutputTokens", "max_output_tokens")
+    if max_tokens is not None:
+        out["max_tokens"] = _positive_int(max_tokens, field="maxOutputTokens")
+    stop = _alias(gc, "stopSequences", "stop_sequences")
+    if stop:
+        if isinstance(stop, list):
+            stop = clamp_stop_sequences(
+                stop, event="gemini_stop_sequences_truncated"
+            )
+        out["stop"] = stop
+    seed = gc.get("seed")
+    if seed is not None:
+        out["seed"] = seed
+    n = _alias(gc, "candidateCount", "candidate_count")
+    if n is not None and n != 1:
+        raise _invalid("candidateCount > 1 is not supported by this endpoint")
+    mime = _alias(gc, "responseMimeType", "response_mime_type")
+    if mime not in (None, "", "text/plain", "application/json"):
+        raise _invalid(f"Unsupported responseMimeType: {mime!r}")
+    if mime == "application/json":
+        out["response_format"] = {"type": "json_object"}
+        if _alias(gc, "responseSchema", "response_schema") is not None \
+                or _alias(gc, "responseJsonSchema", "response_json_schema") is not None:
+            # v1: json mode is honored, the schema constraint itself is not.
+            logger.warning("gemini_response_schema_dropped")
+    if _alias(gc, "topK", "top_k") is not None:
+        logger.info("gemini_top_k_dropped")
+    if _alias(gc, "thinkingConfig", "thinking_config") is not None:
+        logger.warning("gemini_thinking_config_dropped")
+
+
+def to_openai_request(req: GeminiGenerateRequest, *, model: str, stream: bool) -> dict:
+    """Translate a validated Gemini request into the internal OpenAI
+    chat.completions dict consumed by the chat engine. `model` comes from
+    the URL path, `stream` from the :streamGenerateContent action."""
+    if req.cached_content:
+        raise _invalid("cachedContent is not supported by this endpoint")
+    if req.safety_settings:
+        logger.warning("gemini_safety_settings_dropped")
+
+    contents = req.contents
+    if isinstance(contents, str):
+        contents = [{"role": "user", "parts": [{"text": contents}]}]
+    elif isinstance(contents, dict):
+        contents = [contents]
+
+    ids = _CallIdAllocator()
+    messages: list[dict] = []
+    if req.system_instruction is not None:
+        text = _system_text(req.system_instruction)
+        if text:
+            messages.append({"role": "system", "content": text})
+    for content in contents:
+        if not isinstance(content, dict):
+            raise _invalid("Each entry in 'contents' must be a Content object")
+        messages.extend(_translate_content(content, ids))
+    if not messages:
+        raise _invalid("'contents' produced no messages")
+
+    out: dict = {"model": model, "messages": messages, "stream": stream}
+    if req.tools:
+        tools = _translate_tools(req.tools)
+        if tools:
+            out["tools"] = tools
+    if req.tool_config:
+        tc, allowed = _translate_tool_config(req.tool_config)
+        if allowed is not None:
+            # ANY + multiple allowedFunctionNames: Google's contract is
+            # "must call one of THESE"; OpenAI's "required" alone is only
+            # "must call some tool", so restrict the declared tools to the
+            # allowed subset (undeclared allowed names are ignored, matching
+            # this module's lenient stance elsewhere).
+            allowed_set = set(allowed)
+            subset = [
+                t for t in out.get("tools") or []
+                if t["function"]["name"] in allowed_set
+            ]
+            if not subset:
+                raise _invalid(
+                    "allowedFunctionNames does not match any declared functionDeclaration"
+                )
+            out["tools"] = subset
+        if tc is not None:
+            out["tool_choice"] = tc
+    if req.generation_config:
+        _apply_generation_config(req.generation_config, out)
+    return out
+
+
+# ── Response translation (OpenAI → Gemini) ─────────────────────────────
+
+_FINISH_REASON_MAP = {
+    "stop": "STOP",
+    "length": "MAX_TOKENS",
+    "content_filter": "SAFETY",
+    "tool_calls": "STOP",
+    "function_call": "STOP",
+}
+
+
+def _usage_metadata(usage: dict) -> dict:
+    prompt = usage.get("prompt_tokens", 0) or 0
+    completion = usage.get("completion_tokens", 0) or 0
+    return {
+        "promptTokenCount": prompt,
+        "candidatesTokenCount": completion,
+        "totalTokenCount": usage.get("total_tokens") or (prompt + completion),
+    }
+
+
+def to_gemini_response(resp: dict) -> dict:
+    choices = resp.get("choices") or [{}]
+    choice = choices[0] if choices else {}
+    msg = choice.get("message") or {}
+
+    parts: list[dict] = []
+    text = flatten_openai_content(msg.get("content"))
+    if text:
+        parts.append({"text": text})
+    for tc in msg.get("tool_calls") or []:
+        fn = tc.get("function") or {}
+        parts.append({
+            "functionCall": {
+                "name": fn.get("name", ""),
+                "args": _parse_json_object(fn.get("arguments")),
+            }
+        })
+
+    return {
+        "candidates": [{
+            "content": {"role": "model", "parts": parts},
+            "finishReason": _FINISH_REASON_MAP.get(choice.get("finish_reason"), "STOP"),
+            "index": 0,
+        }],
+        "usageMetadata": _usage_metadata(resp.get("usage") or {}),
+        "modelVersion": resp.get("model", ""),
+        "responseId": resp.get("id", ""),
+    }
+
+
+# ── Stream translation (OpenAI chunk frames → Gemini chunk dicts) ──────
+
+# Engine SSE error-frame `type` → HTTP-ish code for the Google envelope
+# (the Google status string derives from the code via
+# _STATUS_TO_GOOGLE_STATUS). Client retry/backoff logic keys off the
+# status, so a provider rate limit must surface as RESOURCE_EXHAUSTED,
+# not INTERNAL.
+_STREAM_ERROR_TYPE_TO_CODE = {
+    "rate_limit_error": 429,
+    "model_not_found": 404,
+    "context_length_exceeded": 400,
+    # Operator-side and permanent until they act (credential rejected, no
+    # provider key configured at all, or no configured model with the
+    # capability the request needs) — must not surface as a retryable
+    # 503/UNAVAILABLE that SDKs keep backing off against.
+    "upstream_auth_error": 403,
+    "no_providers_configured": 403,
+    "no_capable_provider": 403,
+    "upstream_timeout": 503,
+    "upstream_error": 503,
+}
+
+
+async def stream_chunks(frames: AsyncIterable[dict]) -> AsyncGenerator[dict, None]:
+    """Transform the engine's OpenAI chunk-dict stream into
+    GenerateContentResponse-shaped chunk dicts. Text deltas stream through
+    one-to-one; tool-call argument fragments are buffered (Gemini never
+    emits a partial functionCall) and flushed complete the moment a text
+    delta follows them — the model finished its calls and moved on, and
+    text it wrote after a call must not reach the client before it — or
+    before the final finishReason + usageMetadata chunk."""
+    model = ""
+    resp_id = ""
+    finish: str | None = None
+    usage: dict = {}
+    tool_buf: dict[int, dict] = {}
+    flushed_names: dict[int, str] = {}  # index → name, for already-emitted calls
+    failed = False
+
+    def _base(extra: dict) -> dict:
+        return {"modelVersion": model, "responseId": resp_id, **extra}
+
+    def _function_call_chunk(*, only_complete: bool = False) -> dict | None:
+        """Buffered calls as complete functionCall parts, in index order,
+        removed from the buffer. `only_complete` (the mid-stream flush)
+        keeps back a call whose arguments are not yet whole JSON: a text
+        delta landing between two argument fragments of one call must not
+        split it into two parts — it waits for end-of-stream. Returns None
+        when nothing is ready."""
+        ready = [
+            (idx, slot) for idx, slot in sorted(tool_buf.items())
+            if not only_complete or _args_complete(slot["args"])
+        ]
+        if not ready:
+            return None
+        for idx, slot in ready:
+            del tool_buf[idx]
+            if only_complete:
+                flushed_names[idx] = slot["name"]
+        return _base({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {"functionCall": {
+                            "name": slot["name"],
+                            "args": _parse_json_object(slot["args"]),
+                        }}
+                        for _, slot in ready
+                    ],
+                },
+                "index": 0,
+            }],
+        })
+
+    try:
+        async for frame in frames:
+            if "error" in frame and "choices" not in frame:
+                err = frame.get("error") or {}
+                code = _STREAM_ERROR_TYPE_TO_CODE.get(err.get("type"), 500)
+                # Read on to the [DONE] the engine sends right after its
+                # error frame BEFORE handing the error chunk to the client.
+                # With the sentinel consumed, `finish()` in the finally
+                # below DRAINS the engine to a normal completion whether we
+                # are resumed after the yield or closed at it (client gone
+                # while the chunk was in flight), and the engine logs
+                # 503 + the real error type either way. Yielding first
+                # would leave that classification hanging on our being
+                # resumed before the client disconnects: a close at the
+                # yield would forward as aclose() into the engine instead.
+                async for _ in frames:
+                    pass
+                yield {
+                    "error": {
+                        "code": code,
+                        "message": err.get("message", "Upstream provider error"),
+                        "status": _STATUS_TO_GOOGLE_STATUS.get(code, "INTERNAL"),
+                    }
+                }
+                return
+
+            model = frame.get("model") or model
+            resp_id = frame.get("id") or resp_id
+            choices = frame.get("choices") or []
+            choice = choices[0] if choices else {}
+            delta = choice.get("delta") or {}
+
+            text = delta.get("content")
+            if text:
+                # Text first, then this delta's own tool_calls: OpenAI's
+                # delta has no ordering between the two, and LiteLLM folds
+                # a Gemini chunk of [functionCall, text] and one of
+                # [text, functionCall] into the same delta — so a call the
+                # model emitted BEFORE text in the same chunk comes out
+                # after it. Not recoverable at this layer (documented in
+                # integrations/gemini-sdk.md); across chunks the order is
+                # preserved by the flush below.
+                if tool_buf:
+                    ready = _function_call_chunk(only_complete=True)
+                    if ready is not None:
+                        yield ready
+                yield _base({
+                    "candidates": [{
+                        "content": {"role": "model", "parts": [{"text": text}]},
+                        "index": 0,
+                    }],
+                })
+
+            for tcd in delta.get("tool_calls") or []:
+                idx = tcd.get("index", 0)
+                if idx not in tool_buf and idx in flushed_names:
+                    # More fragments for a call already emitted as a
+                    # complete part (its arguments parsed at that point and
+                    # text followed). The part cannot be amended, so carry
+                    # the name over to the remainder and log it.
+                    logger.warning(
+                        "gemini_tool_fragments_after_flush",
+                        index=idx, name=flushed_names[idx],
+                    )
+                slot = tool_buf.setdefault(
+                    idx, {"name": flushed_names.get(idx, ""), "args": ""}
+                )
+                fn = tcd.get("function") or {}
+                if fn.get("name"):
+                    slot["name"] = fn["name"]
+                if fn.get("arguments"):
+                    slot["args"] += fn["arguments"]
+
+            if choice.get("finish_reason"):
+                finish = choice["finish_reason"]
+            if frame.get("usage"):
+                usage = frame["usage"]
+
+        # Normal end of stream.
+        if tool_buf:
+            yield _function_call_chunk()
+        yield _base({
+            "candidates": [{
+                "content": {"role": "model", "parts": []},
+                "finishReason": _FINISH_REASON_MAP.get(finish, "STOP"),
+                "index": 0,
+            }],
+            "usageMetadata": _usage_metadata(usage),
+        })
+    except Exception:
+        # See the Anthropic twin: an adapter fault must reach the engine as
+        # one, not as a close it would file as a client disconnect.
+        failed = True
+        raise
+    finally:
+        # Last, deliberately: this drains the engine (running its
+        # RequestLog commit), so the final chunk above always reaches the
+        # client ahead of that DB write. See OpenAIFrameStream. Shielded
+        # for the same reason as the Anthropic twin: a client disconnect
+        # lands here as task-group cancellation, and an unshielded await
+        # would abort the forwarding before it reaches the engine.
+        with anyio.CancelScope(shield=True):
+            await finish_quietly(frames, failed=failed)
+
+
+def stream_error_chunk(message: str) -> dict:
+    """The in-stream error chunk for a failure inside the adapter itself
+    (headers already sent, so a non-200 is impossible)."""
+    return {"error": {"code": 500, "message": message, "status": "INTERNAL"}}
+
+
+# ── Error envelope ──────────────────────────────────────────────────────
+
+_STATUS_TO_GOOGLE_STATUS = {
+    400: "INVALID_ARGUMENT",
+    401: "UNAUTHENTICATED",
+    403: "PERMISSION_DENIED",
+    404: "NOT_FOUND",
+    429: "RESOURCE_EXHAUSTED",
+    500: "INTERNAL",
+    503: "UNAVAILABLE",
+}
+
+
+def native_status(status: int, error_type: str | None) -> int:
+    """Correct the engine's generic HTTP status using its translated
+    error_type (relayed via the x-orca-error-type header) where the plain
+    status would misrepresent the failure on this surface — e.g. the
+    engine uses 422 for model_not_found but Google's contract is 404
+    NOT_FOUND. Derived from _STREAM_ERROR_TYPE_TO_CODE (rather than a
+    hand-kept mirror) so the stream and blocking paths cannot drift."""
+    return _STREAM_ERROR_TYPE_TO_CODE.get(error_type, status)
+
+
+def delivered_status(status: int, error_type: str | None) -> int:
+    """The status this surface really puts on the wire for an engine
+    failure: native_status's remapping plus the envelope's 422→400
+    collapse. Handed to `execute_chat(log_status=...)` so the RequestLog
+    row records what the client received — the aggregate (non-alt=sse)
+    streaming path renders a genuine 404/429/403 from the error chunk,
+    while the engine's own status for that failure is a generic 503."""
+    status = native_status(status, error_type)
+    return 400 if status == 422 else status
+
+
+def error_response(status: int, message: str) -> JSONResponse:
+    """Render an error in the Google API envelope (422 collapses to 400)."""
+    if status == 422:
+        status = 400
+    return JSONResponse(
+        status_code=status,
+        content={
+            "error": {
+                "code": status,
+                "message": message,
+                "status": _STATUS_TO_GOOGLE_STATUS.get(status, "INTERNAL"),
+            }
+        },
+    )
