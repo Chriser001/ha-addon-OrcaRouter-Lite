@@ -1,0 +1,278 @@
+name: release
+
+# Publishes the two distribution artifacts:
+#
+#   * ghcr.io/continuum-ai-corp/orcarouter-lite  — container image
+#   * https://pypi.org/p/orcarouter-lite          — wheel + sdist
+#
+# Push to main  -> `:edge` image (amd64 only, fast feedback).
+# Push a v* tag -> `:latest` + `:X.Y.Z` + `:X.Y` image (amd64 + arm64),
+#                  PyPI release, and the dists attached to the GitHub release.
+#
+# Nothing consumable is published before it has been executed: the build pushes
+# an immutable `sha-<short>` tag, every platform in the image is booted against
+# `/health`, and only then are the release tags moved onto that digest.
+#
+# One-time setup before the first tag: see RELEASING.md.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  # All tag releases share one group. Per-ref groups let a v0.1.1 and a v0.1.2
+  # push run concurrently, and both write the shared `latest` tag — last writer
+  # wins, so a slower older release can leave `latest` pointing backwards.
+  # Branch and dispatch runs keep their own group.
+  group: release-${{ github.ref_type == 'tag' && 'tag' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  image:
+    name: ghcr image
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write      # push to ghcr.io
+      id-token: write      # provenance attestation
+      attestations: write  # provenance attestation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: resolve image name + platforms
+        id: cfg
+        run: |
+          # GHCR rejects uppercase; Continuum-AI-Corp/OrcaRouter-Lite -> lowercase.
+          image="${REGISTRY}/${GITHUB_REPOSITORY,,}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          # The build pushes this tag and nothing else. It is immutable and
+          # nothing consumes it, so a failed smoke test leaves no broken
+          # `latest`/`X.Y.Z` behind — `promote` applies those afterwards.
+          # Same shape as metadata-action's `type=sha,format=short`, so promote
+          # re-applies it with the rest and every tag lands on one digest.
+          echo "staging=${image}:sha-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          # arm64 is emulated (slow), so only pay for it on an actual release.
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "platforms=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
+          else
+            echo "platforms=linux/amd64" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-qemu-action@v3
+        if: startsWith(github.ref, 'refs/tags/v')
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: image tags + labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.cfg.outputs.image }}
+          # This is the *promote* list, not what the build pushes: these tags
+          # are attached to the digest only after the smoke test passes.
+          tags: |
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=sha,format=short
+
+      - name: build + push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ steps.cfg.outputs.platforms }}
+          push: true
+          tags: ${{ steps.cfg.outputs.staging }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Provenance is attached below by actions/attest-build-provenance so
+          # `gh attestation verify` works; buildx's own would duplicate it.
+          provenance: false
+          sbom: false
+
+      - name: smoke the pushed image
+        run: |
+          img="${{ steps.cfg.outputs.image }}@${{ steps.build.outputs.digest }}"
+          host="linux/$(docker version --format '{{.Server.Arch}}')"
+          IFS=',' read -ra platforms <<< "${{ steps.cfg.outputs.platforms }}"
+          rc=0
+          for p in "${platforms[@]}"; do
+            # Every platform that gets published is booted once. An arm64 image
+            # that is never executed is an arm64 image nobody proved works.
+            name="rel-${p##*/}"
+            # Emulated platforms boot several times slower than the host one.
+            if [ "$p" = "$host" ]; then tries=20; else tries=60; fi
+            echo "::group::smoke $p"
+            docker rm -f "$name" >/dev/null 2>&1 || true
+            docker run -d --name "$name" --platform "$p" -p 8000:8000 \
+              -e DATABASE_URL=sqlite+aiosqlite:///./orca.db "$img" >/dev/null
+            ok=0
+            for _ in $(seq 1 "$tries"); do
+              if curl -sf http://localhost:8000/health; then
+                echo; echo "✓ $p is healthy"
+                ok=1
+                break
+              fi
+              sleep 3
+            done
+            if [ "$ok" != 1 ]; then
+              echo "✗ $p never became healthy"
+              docker logs "$name" || true
+              rc=1
+            fi
+            docker rm -f "$name" >/dev/null
+            echo "::endgroup::"
+            [ "$rc" = 0 ] || break
+          done
+          exit $rc
+
+      - name: promote the digest to the release tags
+        id: promote
+        run: |
+          src="${{ steps.cfg.outputs.image }}@${{ steps.build.outputs.digest }}"
+          released="${{ steps.build.outputs.digest }}"
+          tags=()
+          while IFS= read -r t; do
+            [ -n "$t" ] || continue
+            tags+=("$t")
+          done <<< "${{ steps.meta.outputs.tags }}"
+          if [ ${#tags[@]} -eq 0 ]; then
+            echo "no tags for this ref — $src stays as it is"
+          else
+            args=()
+            for t in "${tags[@]}"; do args+=(--tag "$t"); done
+            docker buildx imagetools create "${args[@]}" "$src"
+            # imagetools copies a multi-platform index as-is but wraps a
+            # single-platform manifest in a fresh one, so read back what the
+            # tags actually resolve to instead of assuming the build digest —
+            # that is the digest consumers get, and the digest to attest.
+            released=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "${tags[0]}")
+            for t in "${tags[@]}"; do
+              got=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$t")
+              if [ "$got" != "$released" ]; then
+                echo "::error::$t resolved to $got, expected $released — tags disagree"
+                exit 1
+              fi
+              echo "✓ $t -> $got"
+            done
+          fi
+          echo "digest=$released" >> "$GITHUB_OUTPUT"
+
+      # Attests what the release tags resolve to, so
+      # `gh attestation verify oci://…:latest` verifies the image people pull.
+      - name: attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.cfg.outputs.image }}
+          subject-digest: ${{ steps.promote.outputs.digest }}
+          push-to-registry: true
+
+      - name: summary
+        run: |
+          {
+            echo "### Image published"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo
+            echo "digest: \`${{ steps.promote.outputs.digest }}\`"
+            echo "platforms: \`${{ steps.cfg.outputs.platforms }}\` (each one booted)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  pypi:
+    name: pypi
+    # The image job is the gate: a tag whose container never booted is not worth
+    # putting on PyPI, and publishing one of the two advertised artifacts for a
+    # version while the other failed leaves them inconsistent.
+    needs: image
+    # Forks can rehearse the whole release (the image job pushes to their own
+    # ghcr namespace), but only the canonical repo owns the PyPI project — a
+    # fork has no trusted publisher and would just fail at the OIDC exchange.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v')
+      && github.repository == 'Continuum-AI-Corp/OrcaRouter-Lite'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: pypi
+      url: https://pypi.org/p/orcarouter-lite
+    permissions:
+      contents: write  # attach the dists to the GitHub release
+      id-token: write  # PyPI trusted publishing (OIDC) — no API token stored
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: tag must match the pyproject version
+        run: |
+          v=$(python -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          t="${GITHUB_REF_NAME#v}"
+          echo "pyproject=$v  tag=$t"
+          if [ "$v" != "$t" ]; then
+            echo "::error::pyproject version ($v) does not match the tag ($t) — bump one of them"
+            exit 1
+          fi
+
+      - run: python -m pip install --upgrade build twine
+
+      - run: python -m build
+
+      - run: twine check --strict dist/*
+
+      - name: wheel installs, boots and serves the dashboard
+        run: |
+          python -m venv /tmp/verify
+          /tmp/verify/bin/pip install --quiet dist/*.whl
+          /tmp/verify/bin/orcarouter-lite --version
+          DATABASE_URL=sqlite+aiosqlite:////tmp/verify.db \
+            /tmp/verify/bin/orcarouter-lite --port 8123 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 20); do
+            curl -sf http://localhost:8123/health >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:8123/health || { echo "::error::wheel did not boot"; exit 1; }
+          curl -sf http://localhost:8123/ | grep -qi "<html" \
+            || { echo "::error::dashboard is missing from the wheel"; exit 1; }
+          echo "✓ wheel boots and serves the dashboard"
+
+      # The GitHub release goes first because it is the retryable half: a
+      # published PyPI version can never be replaced, so writing it first would
+      # leave a failure here half-done — and the re-run would abort at the
+      # upload step before ever reaching the attach.
+      - name: attach dists to the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+
+      - name: publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Makes a re-run of a partially failed release a no-op here instead of
+          # a hard "File already exists" abort. The tag/version gate above is
+          # what keeps this from masking a genuine version mix-up.
+          skip-existing: true
