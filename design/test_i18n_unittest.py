@@ -37,10 +37,30 @@ class I18NTests(unittest.TestCase):
         for locale, body in locale_blocks.items():
             if locale == "en":
                 continue
-            values = dict(re.findall(r'"([a-z0-9_.]+)"\s*:\s*"([^"]*)"', body))
+            values = dict(re.findall(r'"([a-z0-9_.]+)"\s*:\s*"((?:[^"\\]|\\.)*)"', body))
             for key in REQUIRED_KEYS:
                 self.assertIn(key, values)
                 self.assertNotEqual(values[key], en_values.get(key), f"{locale} uses English fallback for {key}")
+
+    def test_zh_covers_every_en_key(self):
+        """zh is the only locale kept fully in sync with en — every en key must
+        have a zh translation (the other 10 locales intentionally ship the
+        small base set and fall back via t())."""
+        block = re.search(r'const I18N = \{(.*?)\n\};', APP_JS, re.S)
+        self.assertIsNotNone(block)
+        text = block.group(1)
+        locale_blocks = dict(re.findall(r'\n\s{2}([a-z]{2}):\s*\{(.*?)\},', text, re.S))
+        en_keys = set(re.findall(r'"([a-z0-9_.]+)"\s*:', locale_blocks["en"]))
+        zh_keys = set(re.findall(r'"([a-z0-9_.]+)"\s*:', locale_blocks["zh"]))
+        self.assertEqual(en_keys, zh_keys, f"en/zh key drift: en-only={sorted(en_keys-zh_keys)} zh-only={sorted(zh_keys-en_keys)}")
+        # zh values must not be verbatim English (spot obvious fallbacks)
+        zh_vals = dict(re.findall(r'"([a-z0-9_.]+)"\s*:\s*"((?:[^"\\]|\\.)*)"', locale_blocks["zh"]))
+        # keys whose zh value is legitimately identical ASCII (pure code/product terms)
+        ascii_exceptions = {"ui.routing.map_litellm"}
+        for k, v in zh_vals.items():
+            if k in ascii_exceptions:
+                continue
+            self.assertFalse(v and re.fullmatch(r'[\x20-\x7e]+', v), f"zh value still pure ASCII (untranslated?): {k}={v!r}")
 
 if __name__ == '__main__':
     unittest.main()

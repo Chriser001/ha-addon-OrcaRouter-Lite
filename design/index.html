@@ -49,15 +49,15 @@
       </form>
 
       <details class="auth-help">
-        <summary>Where do I find my key?</summary>
+        <summary data-i18n="ui.auth.find_key">Where do I find my key?</summary>
         <ol>
-          <li>Run <code>docker compose up</code> (or <code>uvicorn app.main:app</code>).</li>
-          <li>On first start, the server prints:<br>
+          <li data-i18n-html="ui.auth.run_li">Run <code>docker compose up</code> (or <code>uvicorn app.main:app</code>).</li>
+          <li data-i18n-html="ui.auth.first_run_li">On first start, the server prints:<br>
             <code class="code-block">✓ orcarouter-lite ready. API key: sk-orca-...</code>
           </li>
-          <li>Copy that string and paste it above.</li>
+          <li data-i18n="ui.auth.copy_paste">Copy that string and paste it above.</li>
         </ol>
-        <p class="muted">
+        <p class="muted" data-i18n-html="ui.auth.reset_p">
           Lost it? Reset the workspace by deleting <code>orcarouter.db</code>
           (and any <code>data/</code> volume) and restarting.
         </p>
@@ -131,13 +131,13 @@
           <p class="page-sub" id="page-sub">Your single-tenant LLM router at a glance.</p>
         </div>
         <div class="topbar-right">
-          <label for="language-select" class="sr-only">Language</label>
+          <label for="language-select" class="sr-only" data-i18n="ui.common.language">Language</label>
           <select id="language-select" class="btn btn-ghost" aria-label="Language"></select>
-          <button class="btn btn-ghost" id="copy-base-url" data-tooltip="Copy your base URL">
+          <button class="btn btn-ghost" id="copy-base-url" data-tooltip="Copy your base URL" data-i18n-title="ui.common.copy_base_tip">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <code id="base-url-code">http://localhost:8000/v1</code>
           </button>
-          <button class="btn btn-ghost" id="logout-btn" data-tooltip="Forget API key (this device)">
+          <button class="btn btn-ghost" id="logout-btn" data-tooltip="Forget API key (this device)" data-i18n-title="ui.common.logout_tip">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span data-i18n="nav.sign_out">Sign out</span>
           </button>
@@ -148,37 +148,37 @@
         <!-- ─────────────── Overview ─────────────── -->
         <section id="panel-overview" class="panel active">
           <div class="kpi-grid">
-            <article class="kpi-card" data-tooltip="Sum of all upstream costs over the last 7 days">
+            <article class="kpi-card" data-tooltip="Sum of all upstream costs over the last 7 days" data-i18n-title="ui.overview.spend_tip">
               <div class="kpi-head">
-                <span class="kpi-label">Spend (7d)</span>
+                <span class="kpi-label" data-i18n="ui.overview.spend_label">Spend (7d)</span>
                 <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               </div>
               <div class="kpi-value" id="kpi-spend">$—</div>
               <div class="kpi-sub" id="kpi-spend-sub">across 0 requests</div>
             </article>
-            <article class="kpi-card kpi-card-accent" data-tooltip="Top: vs GPT-4o for the same traffic. Bottom: extra savings hosted-auto could unlock by reaching cheaper models you don't have keys for.">
+            <article class="kpi-card kpi-card-accent" data-tooltip="Top: vs GPT-4o for the same traffic. Bottom: extra savings hosted-auto could unlock by reaching cheaper models you don't have keys for." data-i18n-title="ui.overview.savings_tip">
               <div class="kpi-head">
-                <span class="kpi-label">Routing savings</span>
+                <span class="kpi-label" data-i18n="ui.overview.routing_savings">Routing savings</span>
                 <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div class="kpi-value" id="kpi-saved">$—</div>
               <div class="kpi-sub" id="kpi-saved-sub">vs always-GPT-4o</div>
               <div class="kpi-extra" id="kpi-hosted-auto">
-                <span class="kpi-extra-label">vs hosted-auto</span>
+                <span class="kpi-extra-label" data-i18n="ui.overview.vs_hosted_auto">vs hosted-auto</span>
                 <span class="kpi-extra-value" id="kpi-hosted-auto-value">+$—</span>
               </div>
             </article>
-            <article class="kpi-card" data-tooltip="True median latency across the most recent requests (raw samples, not averaged)">
+            <article class="kpi-card" data-tooltip="True median latency across the most recent requests (raw samples, not averaged)" data-i18n-title="ui.overview.latency_tip">
               <div class="kpi-head">
-                <span class="kpi-label">p50 latency</span>
+                <span class="kpi-label" data-i18n="ui.overview.p50_label">p50 latency</span>
                 <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </div>
               <div class="kpi-value" id="kpi-p50">— ms</div>
               <div class="kpi-sub" id="kpi-p99">p99 — ms</div>
             </article>
-            <article class="kpi-card" data-tooltip="Models discovered from your configured provider keys + the catalog">
+            <article class="kpi-card" data-tooltip="Models discovered from your configured provider keys + the catalog" data-i18n-title="ui.overview.models_tip">
               <div class="kpi-head">
-                <span class="kpi-label">Models available</span>
+                <span class="kpi-label" data-i18n="ui.overview.models_label">Models available</span>
                 <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
               </div>
               <div class="kpi-value" id="kpi-models">—</div>
@@ -190,8 +190,8 @@
             <article class="card">
               <header class="card-head">
                 <div>
-                  <h2 class="card-title">Quick start</h2>
-                  <p class="card-sub">You're up — point any OpenAI SDK at your base URL.</p>
+                  <h2 class="card-title" data-i18n="ui.overview.quick_start">Quick start</h2>
+                  <p class="card-sub" data-i18n="ui.overview.quick_sub">You're up — point any OpenAI SDK at your base URL.</p>
                 </div>
                 <div class="seg" id="lang-seg">
                   <button class="seg-btn active" data-lang="python">Python</button>
@@ -199,20 +199,20 @@
                   <button class="seg-btn" data-lang="curl">curl</button>
                 </div>
               </header>
-              <pre class="code-pre"><code id="quickstart-code">loading…</code><button class="copy-btn" id="copy-snippet" data-tooltip="Copy snippet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></pre>
+              <pre class="code-pre"><code id="quickstart-code">loading…</code><button class="copy-btn" id="copy-snippet" data-tooltip="Copy snippet" data-i18n-title="ui.common.copy_snippet_tip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></pre>
               <p class="hint">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                Use <code>model="auto"</code> to let the router pick the cheapest capable model.
+                <span data-i18n-html="ui.overview.auto_hint">Use <code>model="auto"</code> to let the router pick the cheapest capable model.</span>
               </p>
             </article>
 
             <article class="card">
               <header class="card-head">
                 <div>
-                  <h2 class="card-title">Recent activity</h2>
-                  <p class="card-sub">Last 5 requests routed through this server.</p>
+                  <h2 class="card-title" data-i18n="ui.overview.recent_title">Recent activity</h2>
+                  <p class="card-sub" data-i18n="ui.overview.recent_sub">Last 5 requests routed through this server.</p>
                 </div>
-                <button class="btn btn-ghost btn-sm" data-go-tab="analytics">View all</button>
+                <button class="btn btn-ghost btn-sm" data-go-tab="analytics" data-i18n="ui.common.view_all">View all</button>
               </header>
               <div id="overview-recent" class="recent-mini">
                 <div class="empty-mini">
@@ -226,11 +226,11 @@
           <article class="card hosted-card" id="hosted-card" hidden>
             <div class="hosted-card-head">
               <div>
-                <h2 class="card-title">
+                <h2 class="card-title" data-i18n-html="ui.hosted.title">
                   Hosted fallback
                   <span class="pill" id="hosted-status-pill">Not configured</span>
                 </h2>
-                <p class="card-sub" id="hosted-card-sub">
+                <p class="card-sub" id="hosted-card-sub" data-i18n-html="ui.hosted.card_sub">
                   One key, every model. Standard fallback for any model you don't have a local key for.
                   Free <strong>$5</strong> trial credit on sign-up — no credit card.
                 </p>
@@ -244,36 +244,36 @@
                   <span class="hosted-step-num">1</span>
                   <div class="hosted-step-body">
                     <a class="btn btn-primary" id="hosted-signup-btn" href="#" target="_blank" rel="noreferrer">
-                      Get your key on orcarouter.ai
+                      <span data-i18n="ui.hosted.get_key_on_site">Get your key on orcarouter.ai</span>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                     </a>
-                    <span class="hosted-step-hint">Opens the token console in a new tab &mdash; copy your <code>sk-orca-*</code> key there.</span>
-                    <a class="hosted-step-link" id="hosted-register-link" href="#" target="_blank" rel="noreferrer">No account yet? Sign up for free $5 credit</a>
+                    <span class="hosted-step-hint" data-i18n-html="ui.hosted.step1_hint">Opens the token console in a new tab &mdash; copy your <code>sk-orca-*</code> key there.</span>
+                    <a class="hosted-step-link" id="hosted-register-link" href="#" target="_blank" rel="noreferrer" data-i18n="ui.hosted.register">No account yet? Sign up for free $5 credit</a>
                   </div>
                 </li>
                 <li class="hosted-step-row" id="hosted-step-2">
                   <span class="hosted-step-num">2</span>
                   <div class="hosted-step-body">
-                    <span class="hosted-step-hint">Come back here, paste the key and activate.</span>
+                    <span class="hosted-step-hint" data-i18n="ui.hosted.step2_hint">Come back here, paste the key and activate.</span>
                     <form id="hosted-key-form" class="inline-form hosted-paste">
                       <label class="field flex-grow">
-                        <span class="field-label">Hosted API key</span>
+                        <span class="field-label" data-i18n="ui.hosted.api_key_label">Hosted API key</span>
                         <input id="hosted-key-input" type="password" placeholder="sk-orca-..." autocomplete="off" spellcheck="false">
                       </label>
-                      <button type="button" class="btn btn-ghost" id="hosted-paste-btn" data-tooltip="Paste from clipboard">
+                      <button type="button" class="btn btn-ghost" id="hosted-paste-btn" data-tooltip="Paste from clipboard" data-i18n-title="ui.hosted.paste_tip">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-                        Paste
+                        <span data-i18n="ui.common.paste">Paste</span>
                       </button>
                       <button type="submit" class="btn btn-primary">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        Activate fallback
+                        <span data-i18n="ui.hosted.activate">Activate fallback</span>
                       </button>
                     </form>
                   </div>
                 </li>
               </ol>
               <div id="unreachable-list" class="unreachable-list" hidden>
-                <p class="hosted-meta">Models you can't reach today — hosted unlocks all of them:</p>
+                <p class="hosted-meta" data-i18n="ui.hosted.unreachable_intro">Models you can't reach today — hosted unlocks all of them:</p>
                 <div class="unreachable-grid" id="unreachable-grid"></div>
               </div>
             </div>
@@ -282,17 +282,17 @@
             <div class="hosted-active" id="hosted-active" hidden>
               <p class="hosted-meta" id="hosted-active-meta">Active — every catalog model is reachable.</p>
               <div class="hosted-savings" id="hosted-savings"></div>
-              <button class="btn btn-ghost btn-sm" id="hosted-remove-btn" data-tooltip="Disable hosted fallback">Remove key</button>
+              <button class="btn btn-ghost btn-sm" id="hosted-remove-btn" data-tooltip="Disable hosted fallback" data-i18n-title="ui.hosted.disable_tip" data-i18n="ui.hosted.remove_key">Remove key</button>
             </div>
           </article>
 
           <article class="card help-banner" id="getting-started">
             <div>
-              <h3>New here? Get fully set up in 2 minutes</h3>
+              <h3 data-i18n="ui.hosted.onboarding_title">New here? Get fully set up in 2 minutes</h3>
               <ol class="checklist">
-                <li id="step-1"><span class="check"></span>Add at least one <a href="#" data-go-tab="providers">provider key</a></li>
-                <li id="step-2"><span class="check"></span>Pick a <a href="#" data-go-tab="routing">routing strategy</a></li>
-                <li id="step-3"><span class="check"></span>Send your first request (it'll appear in <a href="#" data-go-tab="analytics">analytics</a>)</li>
+                <li id="step-1" data-i18n-html="ui.hosted.onb1"><span class="check"></span>Add at least one <a href="#" data-go-tab="providers">provider key</a></li>
+                <li id="step-2" data-i18n-html="ui.hosted.onb2"><span class="check"></span>Pick a <a href="#" data-go-tab="routing">routing strategy</a></li>
+                <li id="step-3" data-i18n-html="ui.hosted.onb3"><span class="check"></span>Send your first request (it'll appear in <a href="#" data-go-tab="analytics">analytics</a>)</li>
               </ol>
             </div>
             <button class="btn btn-ghost btn-sm" id="dismiss-getting-started" aria-label="Dismiss">×</button>
@@ -304,16 +304,16 @@
           <article class="card hosted-card hosted-card-compact" id="providers-hosted-card" hidden>
             <div class="hosted-card-head">
               <div>
-                <h2 class="card-title">
+                <h2 class="card-title" data-i18n-html="ui.hosted.title_prov">
                   Hosted fallback
                   <span class="pill" id="providers-hosted-pill">Not configured</span>
                 </h2>
-                <p class="card-sub">
+                <p class="card-sub" data-i18n-html="ui.hosted.prov_sub">
                   Cover the long tail without per-provider sign-ups. Free <strong>$5</strong> credit, billed at cost after.
                 </p>
               </div>
               <a class="btn btn-primary" id="providers-hosted-signup" href="#" target="_blank" rel="noreferrer">
-                Get your key
+                <span data-i18n="ui.hosted.get_key">Get your key</span>
               </a>
             </div>
           </article>
@@ -321,8 +321,8 @@
           <article class="card">
             <header class="card-head">
               <div>
-                <h2 class="card-title">Provider keys <span class="pill">BYOK</span></h2>
-                <p class="card-sub">
+                <h2 class="card-title" data-i18n-html="ui.providers.title">Provider keys <span class="pill">BYOK</span></h2>
+                <p class="card-sub" data-i18n="ui.providers.sub">
                   Encrypted at rest with AES-256-GCM. Env vars override DB rows for the same provider.
                 </p>
               </div>
@@ -332,35 +332,37 @@
 
             <form id="provider-form" class="inline-form">
               <label class="field flex-grow-0">
-                <span class="field-label">Provider</span>
-                <select id="provider-name">
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="google">Google</option>
-                  <option value="xai">xAI (Grok)</option>
-                  <option value="deepseek">DeepSeek</option>
-                  <option value="groq">Groq</option>
-                  <option value="together">Together</option>
-                  <option value="fireworks">Fireworks</option>
-                  <option value="orcarouter">OrcaRouter (hosted upstream)</option>
-                </select>
+                <span class="field-label" data-i18n="ui.providers.name">Provider</span>
+                <!-- Free-text (not a <select>): any OpenAI-compatible endpoint is a
+                     valid provider. The datalist only suggests the known ones. -->
+                <input id="provider-name" list="provider-options" type="text"
+                       placeholder="openai" autocomplete="off" spellcheck="false">
+                <!-- Populated from PROVIDERS_KNOWN in app.js so the suggestions
+                     can't drift away from the quick-add chips. -->
+                <datalist id="provider-options"></datalist>
               </label>
               <label class="field flex-grow">
-                <span class="field-label">API key</span>
+                <span class="field-label" data-i18n="ui.providers.api_key">API key</span>
                 <input id="provider-key" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+              </label>
+              <label class="field flex-grow">
+                <span class="field-label"><span data-i18n="providers.base_url">Base URL</span> <span class="muted small" data-i18n="providers.optional">optional</span></span>
+                <input id="provider-base" type="text" placeholder="https://api.example.com/v1"
+                       autocomplete="off" spellcheck="false">
               </label>
               <button type="submit" class="btn btn-primary">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Save key
+                <span data-i18n="ui.common.save_key">Save key</span>
               </button>
             </form>
 
             <div class="table-wrap" id="providers-table-wrap">
               <table id="providers-table">
                 <thead><tr>
-                  <th>Provider</th>
-                  <th>Prefix</th>
-                  <th>Status</th>
+                  <th data-i18n="ui.common.provider">Provider</th>
+                  <th data-i18n="providers.endpoint">Endpoint</th>
+                  <th data-i18n="ui.common.prefix">Prefix</th>
+                  <th data-i18n="ui.common.status">Status</th>
                   <th class="th-actions"></th>
                 </tr></thead>
                 <tbody></tbody>
@@ -369,8 +371,8 @@
                 <div class="empty-illustration">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="14"/><line x1="10" y1="10" x2="10" y2="14"/></svg>
                 </div>
-                <h3>No provider keys yet</h3>
-                <p>Add at least one to start routing real traffic. Pick a provider above or click a quick-add chip.</p>
+                <h3 data-i18n="ui.providers.empty_title">No provider keys yet</h3>
+                <p data-i18n="ui.providers.empty_sub">Add at least one to start routing real traffic. Pick a provider above or click a quick-add chip.</p>
               </div>
             </div>
           </article>
@@ -381,8 +383,8 @@
           <article class="card">
             <header class="card-head">
               <div>
-                <h2 class="card-title">Routing strategy</h2>
-                <p class="card-sub">
+                <h2 class="card-title" data-i18n="ui.routing.title">Routing strategy</h2>
+                <p class="card-sub" data-i18n-html="ui.routing.sub">
                   How the router picks between candidate models when you send <code>model="auto"</code>.
                 </p>
               </div>
@@ -394,85 +396,85 @@
                 <div class="strategy-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20"/></svg>
                 </div>
-                <div class="strategy-title">Balanced</div>
-                <p class="strategy-desc">50/50 weighted blend of AA quality &amp; cost. The sane default for most teams.</p>
-                <span class="strategy-badge">Recommended</span>
+                <div class="strategy-title" data-i18n="ui.routing.balanced">Balanced</div>
+                <p class="strategy-desc" data-i18n="ui.routing.balanced_desc">50/50 weighted blend of AA quality &amp; cost. The sane default for most teams.</p>
+                <span class="strategy-badge" data-i18n="ui.routing.recommended">Recommended</span>
               </label>
               <label class="strategy-card" data-value="cheapest">
                 <input type="radio" name="strategy" value="cheapest">
                 <div class="strategy-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
-                <div class="strategy-title">Cheapest</div>
-                <p class="strategy-desc">Lowest per-token cost that still meets the request's capabilities.</p>
+                <div class="strategy-title" data-i18n="ui.routing.cheapest">Cheapest</div>
+                <p class="strategy-desc" data-i18n="ui.routing.cheapest_desc">Lowest per-token cost that still meets the request's capabilities.</p>
               </label>
               <label class="strategy-card" data-value="fastest">
                 <input type="radio" name="strategy" value="fastest">
                 <div class="strategy-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                 </div>
-                <div class="strategy-title">Fastest</div>
-                <p class="strategy-desc">Highest throughput + lowest first-token latency, from Artificial Analysis benchmarks. Great for chat UIs.</p>
+                <div class="strategy-title" data-i18n="ui.routing.fastest">Fastest</div>
+                <p class="strategy-desc" data-i18n="ui.routing.fastest_desc">Highest throughput + lowest first-token latency, from Artificial Analysis benchmarks. Great for chat UIs.</p>
               </label>
               <label class="strategy-card" data-value="quality">
                 <input type="radio" name="strategy" value="quality">
                 <div class="strategy-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 </div>
-                <div class="strategy-title">Quality</div>
-                <p class="strategy-desc">Prefers frontier models. Best for hard reasoning tasks.</p>
+                <div class="strategy-title" data-i18n="ui.routing.quality">Quality</div>
+                <p class="strategy-desc" data-i18n="ui.routing.quality_desc">Prefers frontier models. Best for hard reasoning tasks.</p>
               </label>
             </div>
 
             <p class="hint" id="routing-status">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              Pick a card to switch strategy. Saved automatically.
+              <span data-i18n="ui.routing.pick_hint">Pick a card to switch strategy. Saved automatically.</span>
             </p>
           </article>
 
           <article class="card">
             <header class="card-head">
               <div>
-                <h2 class="card-title">How <code>model="auto"</code> works</h2>
-                <p class="card-sub">Three filters, applied in order.</p>
+                <h2 class="card-title" data-i18n-html="ui.routing.how_title">How <code>model="auto"</code> works</h2>
+                <p class="card-sub" data-i18n="ui.routing.how_sub">Three filters, applied in order.</p>
               </div>
             </header>
             <ol class="how-list">
               <li>
-                <strong>Capability filter.</strong>
-                The router inspects your request — is there an image? a tool definition? <code>response_format=json</code>? — and drops models that can't handle it.
+                <strong data-i18n="ui.routing.cap_filter">Capability filter.</strong>
+                <span data-i18n-html="ui.routing.cap_desc">The router inspects your request — is there an image? a tool definition? <code>response_format=json</code>? — and drops models that can't handle it.</span>
               </li>
               <li>
-                <strong>Provider filter.</strong>
-                Only models whose provider you've configured (or that hosted upstream covers) survive.
+                <strong data-i18n="ui.routing.prov_filter">Provider filter.</strong>
+                <span data-i18n="ui.routing.prov_desc">Only models whose provider you've configured (or that hosted upstream covers) survive.</span>
               </li>
               <li>
-                <strong>Strategy ranking.</strong>
-                The remaining candidates are scored by your chosen strategy above. The winner is called.
+                <strong data-i18n="ui.routing.strat_rank">Strategy ranking.</strong>
+                <span data-i18n="ui.routing.strat_rank_desc">The remaining candidates are scored by your chosen strategy above. The winner is called.</span>
               </li>
             </ol>
             <p class="hint">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              The chosen model comes back to your client in the <code>x-orca-resolved-model</code> response header. The strategy in effect is echoed as <code>x-orca-routing-strategy</code>.
+              <span data-i18n-html="ui.routing.resolved_hint">The chosen model comes back to your client in the <code>x-orca-resolved-model</code> response header. The strategy in effect is echoed as <code>x-orca-routing-strategy</code>.</span>
             </p>
             <details class="auth-help">
-              <summary>How each strategy maps to LiteLLM Router</summary>
+              <summary data-i18n="ui.routing.map_summary">How each strategy maps to LiteLLM Router</summary>
               <div class="table-wrap" style="margin-top:8px">
                 <table class="strategy-map">
                   <thead><tr>
-                    <th>Strategy</th>
-                    <th>litellm <code>routing_strategy</code></th>
-                    <th><code>model="auto"</code> picks</th>
+                    <th data-i18n="ui.routing.map_strategy">Strategy</th>
+                    <th data-i18n-html="ui.routing.map_litellm">litellm <code>routing_strategy</code></th>
+                    <th data-i18n-html="ui.routing.map_picks"><code>model="auto"</code> picks</th>
                   </tr></thead>
                   <tbody>
-                    <tr><td><strong>balanced</strong></td><td><code>None</code> (we rank ourselves)</td><td>50/50 normalized AA quality &amp; inverted cost; strict two-axis coverage</td></tr>
-                    <tr><td><strong>cheapest</strong></td><td><code>cost-based-routing</code></td><td>cheapest capable (blended 0.3 input + 0.7 output cost)</td></tr>
-                    <tr><td><strong>fastest</strong></td><td><code>None</code> (we rank ourselves)</td><td>50/50 normalized AA TPS &amp; inverted TTFT; strict two-axis coverage</td></tr>
-                    <tr><td><strong>quality</strong></td><td><code>None</code> (we rank ourselves)</td><td>highest AA Intelligence Index (or manual override); unscored models rank below scored</td></tr>
+                    <tr><td><strong>balanced</strong></td><td data-i18n-html="ui.routing.we_rank"><code>None</code> (we rank ourselves)</td><td data-i18n="ui.routing.map_balanced_desc">50/50 normalized AA quality &amp; inverted cost; strict two-axis coverage</td></tr>
+                    <tr><td><strong>cheapest</strong></td><td><code>cost-based-routing</code></td><td data-i18n="ui.routing.map_cheapest_desc">cheapest capable (blended 0.3 input + 0.7 output cost)</td></tr>
+                    <tr><td><strong>fastest</strong></td><td data-i18n-html="ui.routing.we_rank"><code>None</code> (we rank ourselves)</td><td data-i18n="ui.routing.map_fastest_desc">50/50 normalized AA TPS &amp; inverted TTFT; strict two-axis coverage</td></tr>
+                    <tr><td><strong>quality</strong></td><td data-i18n-html="ui.routing.we_rank"><code>None</code> (we rank ourselves)</td><td data-i18n="ui.routing.map_quality_desc">highest AA Intelligence Index (or manual override); unscored models rank below scored</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p class="muted" style="margin-top:8px">
+              <p class="muted" style="margin-top:8px" data-i18n-html="ui.routing.map_foot">
                 The strategy controls two things: which model <code>model="auto"</code>
                 resolves to, and how LiteLLM Router picks between deployments
                 that serve the same model (e.g. local OpenAI key + hosted upstream).
@@ -486,7 +488,7 @@
           <article class="card">
             <header class="card-head">
               <div>
-                <h2 class="card-title">Spend by model</h2>
+                <h2 class="card-title" data-i18n="ui.analytics.spend_title">Spend by model</h2>
                 <p class="card-sub" id="spend-summary">—</p>
               </div>
               <div class="seg" id="window-seg">
@@ -501,15 +503,15 @@
           <article class="card">
             <header class="card-head">
               <div>
-                <h2 class="card-title">Latency by provider</h2>
-                <p class="card-sub">p50 and p99 — sourced from local request logs.</p>
+                <h2 class="card-title" data-i18n="ui.analytics.latency_title">Latency by provider</h2>
+                <p class="card-sub" data-i18n="ui.analytics.latency_sub">p50 and p99 — sourced from local request logs.</p>
               </div>
             </header>
             <div class="table-wrap">
               <table id="latency-table">
                 <thead><tr>
-                  <th>Provider</th>
-                  <th>Requests</th>
+                  <th data-i18n="ui.common.provider">Provider</th>
+                  <th data-i18n="ui.analytics.requests">Requests</th>
                   <th>p50</th>
                   <th>p99</th>
                 </tr></thead>
@@ -521,19 +523,19 @@
           <article class="card">
             <header class="card-head">
               <div>
-                <h2 class="card-title">Recent requests</h2>
-                <p class="card-sub">Newest first. Click a row to copy its trace ID.</p>
+                <h2 class="card-title" data-i18n="ui.analytics.recent_title">Recent requests</h2>
+                <p class="card-sub" data-i18n="ui.analytics.recent_sub">Newest first. Click a row to copy its trace ID.</p>
               </div>
             </header>
             <div class="table-wrap">
               <table id="recent-table">
                 <thead><tr>
-                  <th>When</th>
-                  <th>Model</th>
-                  <th>Provider</th>
-                  <th>Tokens (in / out)</th>
-                  <th>Latency</th>
-                  <th>Status</th>
+                  <th data-i18n="ui.analytics.when">When</th>
+                  <th data-i18n="ui.common.model">Model</th>
+                  <th data-i18n="ui.common.provider">Provider</th>
+                  <th data-i18n="ui.analytics.tokens">Tokens (in / out)</th>
+                  <th data-i18n="ui.analytics.latency">Latency</th>
+                  <th data-i18n="ui.common.status">Status</th>
                 </tr></thead>
                 <tbody></tbody>
               </table>
@@ -541,8 +543,8 @@
                 <div class="empty-illustration">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
                 </div>
-                <h3>No traffic yet</h3>
-                <p>Once you start sending requests, they'll appear here in real time.</p>
+                <h3 data-i18n="ui.analytics.no_traffic">No traffic yet</h3>
+                <p data-i18n="ui.analytics.no_traffic_sub">Once you start sending requests, they'll appear here in real time.</p>
               </div>
             </div>
           </article>
@@ -553,8 +555,8 @@
           <article class="card">
             <header class="card-head">
               <div>
-                <h2 class="card-title">API keys</h2>
-                <p class="card-sub">
+                <h2 class="card-title" data-i18n="tab.keys.title">API keys</h2>
+                <p class="card-sub" data-i18n-html="ui.keys.intro">
                   Each key authenticates against this Lite workspace. Plaintext is shown <strong>once</strong> on creation.
                 </p>
               </div>
@@ -562,30 +564,30 @@
 
             <form id="key-form" class="inline-form">
               <label class="field flex-grow">
-                <span class="field-label">Name</span>
+                <span class="field-label" data-i18n="ui.keys.name">Name</span>
                 <input id="key-name" type="text" placeholder="e.g. ci-runner, app-prod, my-laptop">
               </label>
               <button type="submit" class="btn btn-primary">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Create key
+                <span data-i18n="ui.keys.create">Create key</span>
               </button>
             </form>
 
             <div id="new-key-display" class="callout" hidden>
               <div class="callout-head">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <strong>Save this key — it won't be shown again.</strong>
+                <strong data-i18n="ui.keys.save_warn">Save this key — it won't be shown again.</strong>
               </div>
-              <pre class="code-pre"><code id="new-key-value"></code><button class="copy-btn" id="new-key-copy" data-tooltip="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></pre>
+              <pre class="code-pre"><code id="new-key-value"></code><button class="copy-btn" id="new-key-copy" data-tooltip="Copy" data-i18n-title="ui.common.copy_tip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></pre>
             </div>
 
             <div class="table-wrap">
               <table id="keys-table">
                 <thead><tr>
-                  <th>Name</th>
-                  <th>Prefix</th>
-                  <th>Status</th>
-                  <th>Last used</th>
+                  <th data-i18n="ui.keys.name">Name</th>
+                  <th data-i18n="ui.common.prefix">Prefix</th>
+                  <th data-i18n="ui.common.status">Status</th>
+                  <th data-i18n="ui.keys.last_used">Last used</th>
                   <th class="th-actions"></th>
                 </tr></thead>
                 <tbody></tbody>
@@ -599,19 +601,19 @@
           <article class="card" id="quality-setup-card" hidden>
             <header class="card-head">
               <div>
-                <h2 class="card-title">Set up quality scoring</h2>
-                <p class="card-sub">
+                <h2 class="card-title" data-i18n="ui.quality.setup_title">Set up quality scoring</h2>
+                <p class="card-sub" data-i18n-html="ui.quality.setup_p1">
                   Strategy <code>quality</code> currently picks the most expensive model — a proxy that broke when newer flagships (Claude Opus 4.7, GPT-5.x) shipped at lower prices than older ones. Set an Artificial Analysis API key to route by real benchmark scores instead.
                 </p>
               </div>
             </header>
             <div class="setup-steps">
               <ol>
-                <li>Sign up free at <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">artificialanalysis.ai</a> and generate an API key (free tier: 1,000 req/day, plenty for 1h-cached usage).</li>
-                <li>Add it to your <code>.env</code> as <code>ARTIFICIAL_ANALYSIS_API_KEY=...</code> and restart.</li>
-                <li>Reload this page — scores will appear automatically.</li>
+                <li data-i18n-html="ui.quality.setup_li1">Sign up free at <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">artificialanalysis.ai</a> and generate an API key (free tier: 1,000 req/day, plenty for 1h-cached usage).</li>
+                <li data-i18n-html="ui.quality.setup_li2">Add it to your <code>.env</code> as <code>ARTIFICIAL_ANALYSIS_API_KEY=...</code> and restart.</li>
+                <li data-i18n="ui.quality.setup_li3">Reload this page — scores will appear automatically.</li>
               </ol>
-              <p class="callout-foot">
+              <p class="callout-foot" data-i18n-html="ui.quality.setup_foot">
                 Without a key, <code>quality</code> falls back to the legacy cost-based behavior. <code>cheapest</code> / <code>balanced</code> / <code>fastest</code> are unaffected. You can still set <strong>manual overrides</strong> on individual models in the table below — those work without an AA key and take precedence when present.
               </p>
             </div>
@@ -620,21 +622,21 @@
           <article class="card" id="quality-status-card" hidden>
             <header class="card-head">
               <div>
-                <h2 class="card-title">Quality scores</h2>
+                <h2 class="card-title" data-i18n="tab.quality.title">Quality scores</h2>
                 <p class="card-sub">
                   <span id="quality-status-line">Loading…</span>
                 </p>
               </div>
               <button id="quality-refresh" class="btn btn-secondary" type="button">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                Refresh from AA
+                <span data-i18n="ui.quality.refresh">Refresh from AA</span>
               </button>
             </header>
 
             <div class="callout" id="quality-preview" hidden>
               <div class="callout-head">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-                <strong>Right now, <code>model="auto"</code> would resolve to:</strong>
+                <strong data-i18n-html="ui.quality.preview_title">Right now, <code>model="auto"</code> would resolve to:</strong>
               </div>
               <div id="quality-preview-body"></div>
             </div>
@@ -643,8 +645,8 @@
           <article class="card" id="quality-table-card" hidden>
             <header class="card-head">
               <div>
-                <h2 class="card-title">Models</h2>
-                <p class="card-sub">
+                <h2 class="card-title" data-i18n="ui.quality.models_title">Models</h2>
+                <p class="card-sub" data-i18n-html="ui.quality.models_sub">
                   Edit a row's <strong>Manual</strong> column to override the AA score for routing decisions. Manual values win over AA. Use this when your own evals disagree, or when AA hasn't scored a model yet.
                 </p>
               </div>
@@ -653,15 +655,15 @@
             <div class="table-wrap">
               <table id="quality-table">
                 <thead><tr>
-                  <th>Model</th>
-                  <th>Provider</th>
+                  <th data-i18n="ui.common.model">Model</th>
+                  <th data-i18n="ui.common.provider">Provider</th>
                   <th class="num">AA</th>
-                  <th class="num">Manual</th>
-                  <th class="num">Effective</th>
-                  <th class="num" title="Output tokens per second (Artificial Analysis median, max across reasoning variants). — when AA hasn't indexed this model.">TPS</th>
-                  <th class="num" title="Time to first token in seconds (Artificial Analysis median, min across reasoning variants — the model's non-reasoning fast mode). — when AA hasn't indexed this model.">TTFT</th>
-                  <th class="num">$/M blended</th>
-                  <th>Status</th>
+                  <th class="num" data-i18n="ui.quality.manual">Manual</th>
+                  <th class="num" data-i18n="ui.quality.effective">Effective</th>
+                  <th class="num" title="Output tokens per second (Artificial Analysis median, max across reasoning variants). — when AA hasn't indexed this model." data-i18n-title="ui.quality.tps_th_title">TPS</th>
+                  <th class="num" title="Time to first token in seconds (Artificial Analysis median, min across reasoning variants — the model's non-reasoning fast mode). — when AA hasn't indexed this model." data-i18n-title="ui.quality.ttft_th_title">TTFT</th>
+                  <th class="num" data-i18n="ui.quality.blended">$/M blended</th>
+                  <th data-i18n="ui.common.status">Status</th>
                   <th class="th-actions"></th>
                 </tr></thead>
                 <tbody></tbody>
@@ -669,7 +671,7 @@
             </div>
 
             <p class="card-foot small muted">
-              Powered by <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">Artificial Analysis</a> — Intelligence Index aggregates MMLU-Pro, GPQA, MATH, HumanEval, and other benchmarks. Attribution required.
+              <span data-i18n-html="ui.quality.powered">Powered by <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">Artificial Analysis</a> — Intelligence Index aggregates MMLU-Pro, GPQA, MATH, HumanEval, and other benchmarks. Attribution required.</span>
             </p>
           </article>
         </section>
@@ -680,36 +682,36 @@
   <!-- ─────────────── Help drawer ─────────────── -->
   <aside class="drawer" id="help-drawer" hidden>
     <header class="drawer-head">
-      <h2>Help &amp; docs</h2>
+      <h2 data-i18n="nav.help_docs">Help &amp; docs</h2>
       <button class="icon-btn" id="close-help" aria-label="Close help">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </header>
     <div class="drawer-body">
       <section>
-        <h3>What is OrcaRouter Lite?</h3>
-        <p>A self-hosted, OpenAI-compatible LLM router. Bring your own provider keys (BYOK), point any OpenAI SDK at the local base URL, and the router picks the cheapest capable model for each request — with optional fallback to hosted <a href="https://api.orcarouter.ai" target="_blank" rel="noreferrer">api.orcarouter.ai</a>.</p>
+        <h3 data-i18n="ui.help.what_title">What is OrcaRouter Lite?</h3>
+        <p data-i18n-html="ui.help.what_body">A self-hosted, OpenAI-compatible LLM router. Bring your own provider keys (BYOK), point any OpenAI SDK at the local base URL, and the router picks the cheapest capable model for each request — with optional fallback to hosted <a href="https://api.orcarouter.ai" target="_blank" rel="noreferrer">api.orcarouter.ai</a>.</p>
       </section>
       <section>
-        <h3>60-second quickstart</h3>
+        <h3 data-i18n="ui.help.quick_title">60-second quickstart</h3>
         <ol>
-          <li>Add a provider key under <a href="#" data-go-tab="providers">Providers</a> (or set <code>OPENAI_API_KEY</code> in your env).</li>
-          <li>Optionally choose a <a href="#" data-go-tab="routing">routing strategy</a>.</li>
-          <li>Use this URL as your OpenAI <code>base_url</code>: <code id="help-base-url">http://localhost:8000/v1</code></li>
-          <li>Use the <code>sk-orca-*</code> key you signed in with as the API key.</li>
+          <li data-i18n-html="ui.help.qs1">Add a provider key under <a href="#" data-go-tab="providers">Providers</a> (or set <code>OPENAI_API_KEY</code> in your env).</li>
+          <li data-i18n-html="ui.help.qs2">Optionally choose a <a href="#" data-go-tab="routing">routing strategy</a>.</li>
+          <li data-i18n-html="ui.help.qs3">Use this URL as your OpenAI <code>base_url</code>: <code id="help-base-url">http://localhost:8000/v1</code></li>
+          <li data-i18n-html="ui.help.qs4">Use the <code>sk-orca-*</code> key you signed in with as the API key.</li>
         </ol>
       </section>
       <section>
-        <h3>Keyboard shortcuts</h3>
+        <h3 data-i18n="ui.help.kb_title">Keyboard shortcuts</h3>
         <ul class="kbd-list">
-          <li><kbd>1</kbd> – <kbd>5</kbd><span>Switch tabs</span></li>
-          <li><kbd>⌘</kbd><kbd>K</kbd><span>Command palette</span></li>
-          <li><kbd>?</kbd><span>Toggle this help</span></li>
-          <li><kbd>Esc</kbd><span>Close drawers / palette</span></li>
+          <li><kbd>1</kbd> – <kbd>5</kbd><span data-i18n="ui.help.kb_tabs">Switch tabs</span></li>
+          <li><kbd>⌘</kbd><kbd>K</kbd><span data-i18n="ui.help.kb_palette">Command palette</span></li>
+          <li><kbd>?</kbd><span data-i18n="ui.help.kb_help">Toggle this help</span></li>
+          <li><kbd>Esc</kbd><span data-i18n="ui.help.kb_close">Close drawers / palette</span></li>
         </ul>
       </section>
       <section>
-        <h3>Going further</h3>
+        <h3 data-i18n="ui.help.further_title">Going further</h3>
         <ul class="link-list">
           <li><a href="https://www.orcarouter.ai" target="_blank" rel="noreferrer">orcarouter.ai →</a></li>
           <li><a href="https://docs.orcarouter.ai/introduction" target="_blank" rel="noreferrer">docs.orcarouter.ai →</a></li>
