@@ -1,12 +1,26 @@
 # ── Build stage ────────────────────────────────────────
 FROM python:3.12-slim AS builder
 
+# Optional regional mirrors — empty by default (stock upstream behavior).
+# On networks where plain-HTTP Debian traffic stalls through a system proxy
+# (Docker Desktop forwards its detected proxy into build containers), pointing
+# apt + pip at a domestic mirror that is directly reachable is far more
+# reliable than any proxy configuration. Usage:
+#   docker compose build \
+#     --build-arg APT_MIRROR=mirrors.tuna.tsinghua.edu.cn \
+#     --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+ARG APT_MIRROR=""
+ARG PIP_INDEX_URL=""
+
 # Build deps for any source-built wheels (cryptography / bcrypt fall back to
 # source on platforms without manylinux wheels). Currently all listed deps
 # ship wheels for linux/amd64 + arm64, but adding these costs ~80MB in the
 # builder layer (discarded in the runtime stage) and prevents silent breaks
 # the next time we add a native dep.
-RUN apt-get update \
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+    fi \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
         gcc libffi-dev libssl-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -18,9 +32,9 @@ COPY pyproject.toml .
 # project itself is deliberately NOT installed here — the runtime stage puts
 # the source on PYTHONPATH instead — so this layer is invalidated only when
 # the dependency list changes, never on a code or README edit.
-RUN pip install --no-cache-dir --upgrade pip \
+RUN pip install --no-cache-dir --upgrade pip ${PIP_INDEX_URL:+-i "$PIP_INDEX_URL"} \
     && python -c 'import tomllib;f=open("pyproject.toml","rb");print(*tomllib.load(f)["project"]["dependencies"],sep=chr(10))' > /tmp/requirements.txt \
-    && pip install --no-cache-dir -r /tmp/requirements.txt
+    && pip install --no-cache-dir ${PIP_INDEX_URL:+-i "$PIP_INDEX_URL"} -r /tmp/requirements.txt
 
 # ── Runtime stage ─────────────────────────────────────
 FROM python:3.12-slim

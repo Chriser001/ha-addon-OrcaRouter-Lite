@@ -100,6 +100,19 @@ async def native_client(tmp_sqlite_url, monkeypatch):
 
     fake.acompletion = AsyncMock(side_effect=_acompletion)
 
+    # The models listing derives from the router's deployments, so the fake
+    # must carry the same contract a real OrcaLiteLLMClient has.
+    from packages.litellm_adapter.types import ProviderDeployment
+
+    fake._deployments = [
+        ProviderDeployment(
+            model_name="gemini-1.5-flash",
+            litellm_model="gemini/gemini-1.5-flash",
+            api_key="sk-test",
+            provider="google",
+        ),
+    ]
+
     async def _fake_get_router(_session):
         return fake
 

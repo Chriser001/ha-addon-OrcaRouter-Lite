@@ -69,6 +69,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    # Additive columns for databases created before they existed. `create_all`
+    # above only creates missing TABLES — an upgraded install would otherwise
+    # hit "no such column" on the first request that reads provider rows.
+    # Must stay after create_all so a fresh database is a no-op.
+    from packages.db.schema_sync import ensure_schema
+
+    await ensure_schema(engine)
+
     # Fail closed before any traffic can be served: refuse to boot when
     # provider credentials are (or would be) sealed with the publicly-known
     # dev encryption key. Runs after create_all so a fresh database's empty

@@ -182,6 +182,148 @@ async def test_acompletion_propagates_litellm_hidden_params_into_orca_meta(monke
     )
 
 
+async def test_custom_endpoint_attribution_uses_configured_provider(monkeypatch):
+    """Regression: a request through an OpenAI-compatible custom endpoint
+    must be attributed to the provider the operator configured (stepfun),
+    not to the wire protocol LiteLLM reports (openai).
+
+    LiteLLM's `_hidden_params.custom_llm_provider` is the PROTOCOL it spoke —
+    for every custom endpoint that's "openai", because that's what we told it
+    to speak. Before this fix the dashboard's request log showed
+    "step-3.5-flash → openai".
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    import litellm
+
+    from packages.litellm_adapter.client import OrcaLiteLLMClient
+    from packages.litellm_adapter.types import ProviderDeployment
+
+    class _ResponseModel:
+        model = "step-3.5-flash"
+        _hidden_params = {"custom_llm_provider": "openai"}
+
+        def model_dump(self):
+            return {
+                "model": self.model,
+                "choices": [],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            }
+
+    fake_router = MagicMock()
+
+    async def _acompletion(**kwargs):
+        return _ResponseModel()
+
+    fake_router.acompletion = AsyncMock(side_effect=_acompletion)
+    monkeypatch.setattr(litellm, "Router", lambda **_: fake_router)
+
+    client = OrcaLiteLLMClient(
+        deployments=[
+            ProviderDeployment(
+                model_name="step-3.5-flash",
+                litellm_model="openai/step-3.5-flash",
+                api_key="sk-step",
+                provider="stepfun",
+                api_base="https://api.stepfun.com/v1",
+                custom_llm_provider="openai",
+            )
+        ],
+        strategy="balanced",
+    )
+    result = await client.acompletion(
+        model="step-3.5-flash", messages=[{"role": "user", "content": "hi"}]
+    )
+    assert result["_orca_meta"]["provider"] == "stepfun"
+
+
+async def test_builtin_vendor_attribution_still_uses_litellm_field(monkeypatch):
+    """The override must not disturb direct-vendor deployments: those carry
+    no custom_llm_provider, so LiteLLM's field stays authoritative (it's
+    more reliable than name-matching when LiteLLM rewrites model names)."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    import litellm
+
+    from packages.litellm_adapter.client import OrcaLiteLLMClient
+    from packages.litellm_adapter.types import ProviderDeployment
+
+    class _ResponseModel:
+        model = "gpt-4o-2024-08-06"  # LiteLLM rewrote to a dated alias
+        _hidden_params = {"custom_llm_provider": "openai"}
+
+        def model_dump(self):
+            return {"model": self.model, "choices": [], "usage": {}}
+
+    fake_router = MagicMock()
+
+    async def _acompletion(**kwargs):
+        return _ResponseModel()
+
+    fake_router.acompletion = AsyncMock(side_effect=_acompletion)
+    monkeypatch.setattr(litellm, "Router", lambda **_: fake_router)
+
+    client = OrcaLiteLLMClient(
+        deployments=[
+            ProviderDeployment(
+                model_name="gpt-4o",  # no custom_llm_provider — direct vendor
+                litellm_model="openai/gpt-4o",
+                api_key="sk-o",
+                provider="openai",
+            )
+        ],
+        strategy="balanced",
+    )
+    result = await client.acompletion(
+        model="gpt-4o", messages=[{"role": "user", "content": "hi"}]
+    )
+    assert result["_orca_meta"]["provider"] == "openai"
+
+
+async def test_ambiguous_match_keeps_litellm_attribution(monkeypatch):
+    """The same model name under two providers can't be attributed by name —
+    keep LiteLLM's protocol-level answer rather than guessing."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    import litellm
+
+    from packages.litellm_adapter.client import OrcaLiteLLMClient
+    from packages.litellm_adapter.types import ProviderDeployment
+
+    class _ResponseModel:
+        model = "shared-model"
+        _hidden_params = {"custom_llm_provider": "openai"}
+
+        def model_dump(self):
+            return {"model": self.model, "choices": [], "usage": {}}
+
+    fake_router = MagicMock()
+
+    async def _acompletion(**kwargs):
+        return _ResponseModel()
+
+    fake_router.acompletion = AsyncMock(side_effect=_acompletion)
+    monkeypatch.setattr(litellm, "Router", lambda **_: fake_router)
+
+    client = OrcaLiteLLMClient(
+        deployments=[
+            ProviderDeployment(
+                model_name="shared-model", litellm_model="openai/shared-model",
+                api_key="sk-a", provider="gateway-a", custom_llm_provider="openai",
+            ),
+            ProviderDeployment(
+                model_name="shared-model", litellm_model="openai/shared-model",
+                api_key="sk-b", provider="gateway-b", custom_llm_provider="openai",
+            ),
+        ],
+        strategy="balanced",
+    )
+    result = await client.acompletion(
+        model="shared-model", messages=[{"role": "user", "content": "hi"}]
+    )
+    assert result["_orca_meta"]["provider"] == "openai"
+
+
 async def test_acompletion_orca_meta_cost_none_when_litellm_omits_it(monkeypatch):
     """When the response object has no `_hidden_params` (very old LiteLLM,
     custom upstream wrappers), `cost_usd` must be None on the meta — that's

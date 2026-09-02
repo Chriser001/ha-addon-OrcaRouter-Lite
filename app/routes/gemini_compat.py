@@ -41,7 +41,7 @@ from app.routes.anthropic_compat import (
 from app.routes.chat import ERROR_TYPE_HEADER, execute_chat
 from app.schemas import ChatCompletionRequest
 from packages.auth.types import KeyContext
-from packages.litellm_adapter.catalog import CATALOG, CATALOG_BY_ID
+from packages.litellm_adapter.catalog import find_model
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Gemini"])
@@ -59,8 +59,13 @@ def _model_entry(m) -> dict:
 
 
 @router.get("/v1beta/models")
-async def gemini_list_models(_kc: KeyContext = Depends(get_key_context)):
-    return {"models": [_model_entry(m) for m in CATALOG]}
+async def gemini_list_models(
+    _kc: KeyContext = Depends(get_key_context),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.routes.models import deployed_models
+
+    return {"models": [_model_entry(m) for m in await deployed_models(db)]}
 
 
 @router.get("/v1beta/models/{model_id:path}")
@@ -69,7 +74,7 @@ async def gemini_get_model(model_id: str, _kc: KeyContext = Depends(get_key_cont
     # accept that form here too (`:path` so the embedded slash still
     # routes), falling back to the bare id.
     bare = model_id.removeprefix("models/")
-    m = CATALOG_BY_ID.get(bare)
+    m = find_model(bare)
     if m is None:
         return proto.error_response(404, f"models/{bare} is not found")
     return _model_entry(m)

@@ -21,3 +21,18 @@ class ProviderKey(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     rpm_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     tpm_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     priority: Mapped[int] = mapped_column(Integer, server_default="0")
+
+    # ── Custom endpoint (OpenAI-compatible or any litellm provider) ──────
+    # When set, this provider is routed to `api_base` instead of the vendor's
+    # public endpoint. That's what makes adding a third-party / self-hosted /
+    # proxy endpoint a CONFIG operation rather than a code change: the model
+    # list is discovered from `{api_base}/models` at router-build time.
+    #
+    # NULL keeps the legacy behavior (vendor's own endpoint, models sourced
+    # from litellm's model_cost catalog).
+    api_base: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Wire protocol litellm should speak to this endpoint — "openai" for the
+    # overwhelming majority of third-party / OpenAI-compatible gateways.
+    # NULL falls back to the provider's catalog-derived prefix (or "openai"
+    # for providers unknown to the catalog).
+    custom_llm_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)

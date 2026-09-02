@@ -28,12 +28,109 @@ if TYPE_CHECKING:
 
 HOSTED_PROVIDER_NAME = "orcarouter"
 
+# Wire protocol assumed for an endpoint whose provider litellm has never heard
+# of. "OpenAI-compatible" is what effectively every third-party gateway,
+# self-hosted runtime and regional mirror implements, so it is both the
+# highest-hit-rate guess and the one an operator can override with
+# `custom_llm_provider` when it's wrong.
+_DEFAULT_CUSTOM_PROTOCOL = "openai/"
+
+
+class CustomEndpoint:
+    """A provider routed to a non-default base URL, with its resolved key."""
+
+    __slots__ = ("provider", "api_base", "protocol", "api_key")
+
+    def __init__(
+        self, provider: str, api_base: str, protocol: str | None, api_key: str
+    ) -> None:
+        self.provider = provider
+        self.api_base = api_base
+        # None = "derive it" (catalog prefix if known, else openai/).
+        self.protocol = protocol
+        self.api_key = api_key
+
+
+def _normalize_protocol(protocol: str) -> str:
+    """`openai` → `openai/`; `anthropic/` → `anthropic/`."""
+    return protocol if protocol.endswith("/") else protocol + "/"
+
+
+def resolve_protocol(
+    provider: str, hint: str | None, catalog_models: list
+) -> str:
+    """Decide the litellm wire prefix for a provider's models.
+
+    Precedence: explicit `custom_llm_provider` > the provider's catalog prefix
+    (a known vendor keeps speaking its own protocol even through a proxy) >
+    `openai/` for anything unknown.
+    """
+    if hint:
+        return _normalize_protocol(hint)
+    if catalog_models:
+        return catalog_models[0].litellm_prefix
+    return _DEFAULT_CUSTOM_PROTOCOL
+
+
+def custom_endpoints(
+    *,
+    env_keys: dict[str, str],
+    db_keys: list["ProviderKey"],
+    settings: "Settings",
+) -> dict[str, CustomEndpoint]:
+    """Collect providers that point at a custom base URL.
+
+    A provider qualifies when it resolved a key (DB > env) AND has an
+    `api_base` from either a DB row or `<PROVIDER>_API_BASE` in env. DB
+    wins over env on both key and base, mirroring the key precedence that
+    every other part of the resolver uses.
+
+    The hosted upstream is excluded: it has its own dedicated branch in
+    `build_deployments` and its own setting, and letting a generic base
+    override fork its configuration would silently change what "hosted
+    fallback" means.
+    """
+    out: dict[str, CustomEndpoint] = {}
+
+    for row in db_keys:
+        if not row.is_enabled or row.is_deleted:
+            continue
+        if row.provider == HOSTED_PROVIDER_NAME:
+            continue
+        base = (getattr(row, "api_base", None) or "").strip()
+        if not base:
+            continue
+        try:
+            key = decrypt_credential(row.encrypted_key)
+        except Exception:
+            continue
+        out[row.provider] = CustomEndpoint(
+            provider=row.provider,
+            api_base=base,
+            protocol=getattr(row, "custom_llm_provider", None),
+            api_key=key,
+        )
+
+    for provider, base in settings.env_provider_bases().items():
+        if provider in out or provider == HOSTED_PROVIDER_NAME:
+            continue
+        key = env_keys.get(provider)
+        if not key:
+            # A base with no key is inert — nothing to authenticate with.
+            continue
+        out[provider] = CustomEndpoint(
+            provider=provider, api_base=base, protocol=None, api_key=key
+        )
+
+    return out
+
 
 def build_deployments(
     *,
     env_keys: dict[str, str],
     db_keys: list["ProviderKey"],
     settings: "Settings",
+    custom_models: dict[str, list[str]] | None = None,
 ) -> list[ProviderDeployment]:
     """Assemble the deployment list from env vars + DB rows + hosted upstream.
 
@@ -41,6 +138,12 @@ def build_deployments(
       1. DB provider keys (UI-edited, authoritative; encrypted at rest)
       2. Env vars for providers not present in DB
       3. Hosted-as-upstream (one entry per catalog model) — DB key > env key
+
+    `custom_models` carries model IDs discovered from providers that point at
+    a custom `api_base` (see `discover_custom_models`). It is injected rather
+    than fetched here because discovery is async + network-bound, and this
+    function's value is that it stays pure, synchronous, and cheap to test
+    against a fixed deployment list.
     """
     deployments: list[ProviderDeployment] = []
     db_provider_keys: dict[str, str] = {}
@@ -53,6 +156,11 @@ def build_deployments(
         except Exception:
             continue
 
+    endpoints = custom_endpoints(
+        env_keys=env_keys, db_keys=db_keys, settings=settings
+    )
+    custom_models = custom_models or {}
+
     # Step 1+2: provider keys (DB > env). The hosted "orcarouter" provider
     # has no rows in `models_for_provider`, so it's silently skipped here and
     # picked up in step 3.
@@ -62,6 +170,29 @@ def build_deployments(
         api_key = db_provider_keys.get(provider) or env_keys.get(provider)
         if not api_key:
             continue
+
+        endpoint = endpoints.get(provider)
+        if endpoint is not None:
+            prefix = resolve_protocol(provider, endpoint.protocol, models)
+            # A custom endpoint either proxies a vendor we already know
+            # (keep its catalog models — the whole point of proxying
+            # "openai" is to keep serving the same model ids) or it's an
+            # endpoint litellm has never heard of, in which case the only
+            # model list that exists is the one we discovered from it.
+            model_ids = [m.id for m in models] if models else custom_models.get(provider, [])
+            for model_id in model_ids:
+                deployments.append(
+                    ProviderDeployment(
+                        model_name=model_id,
+                        litellm_model=f"{prefix}{model_id}",
+                        api_key=api_key,
+                        provider=provider,
+                        api_base=endpoint.api_base,
+                        custom_llm_provider=prefix.rstrip("/"),
+                    )
+                )
+            continue
+
         for model in models:
             deployments.append(
                 ProviderDeployment(
@@ -103,6 +234,56 @@ def build_deployments(
                 )
 
     return deployments
+
+
+async def discover_custom_models(
+    *,
+    env_keys: dict[str, str],
+    db_keys: list["ProviderKey"],
+    settings: "Settings",
+    force_refresh: bool = False,
+) -> dict[str, list[str]]:
+    """Ask every custom endpoint what models it serves, and publish the answer.
+
+    Only endpoints litellm has no catalog entry for need this: a proxy in
+    front of a *known* vendor (say `openai` pointed at a corporate gateway)
+    already has a model list and shouldn't pay a network round-trip for one.
+
+    Side effect: publishes into `catalog.CUSTOM_CATALOG` so `GET /v1/models`
+    lists what these endpoints actually serve. Kept out of `build_deployments`
+    to preserve that function's purity.
+
+    Never raises: a dead gateway yields no models for that provider while
+    every other provider still routes.
+    """
+    from app.model_discovery import discover_provider_models
+    from packages.litellm_adapter.catalog import (
+        models_for_provider,
+        sync_custom_provider_models,
+    )
+
+    endpoints = custom_endpoints(
+        env_keys=env_keys, db_keys=db_keys, settings=settings
+    )
+    out: dict[str, list[str]] = {}
+
+    for provider, endpoint in endpoints.items():
+        prefix = resolve_protocol(provider, endpoint.protocol, [])
+        if models_for_provider(provider):
+            continue
+        ids = await discover_provider_models(
+            provider=provider,
+            base_url=endpoint.api_base,
+            api_key=endpoint.api_key,
+            force_refresh=force_refresh,
+        )
+        # Publish the truthful list — including empty, so a gateway that went
+        # away stops advertising models clients can no longer reach.
+        sync_custom_provider_models(provider, ids, litellm_prefix=prefix)
+        if ids:
+            out[provider] = ids
+
+    return out
 
 
 def hosted_key_source(
@@ -180,10 +361,17 @@ async def get_router(session) -> object:
                 select(ProviderKey).where(ProviderKey.is_deleted == 0)
             )
         ).scalars().all()
+        env_keys = settings.env_provider_keys()
+        # Discover custom-endpoint model lists BEFORE assembling deployments:
+        # the deployment list for an unknown provider IS its discovery result.
+        custom_models = await discover_custom_models(
+            env_keys=env_keys, db_keys=list(rows), settings=settings
+        )
         deployments = build_deployments(
-            env_keys=settings.env_provider_keys(),
+            env_keys=env_keys,
             db_keys=list(rows),
             settings=settings,
+            custom_models=custom_models,
         )
 
         routing_row = (

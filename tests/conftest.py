@@ -28,6 +28,20 @@ def _reset_module_state() -> Generator[None, None, None]:
     except Exception:
         pass
     try:
+        from app import model_discovery
+        model_discovery.reset_cache()
+    except Exception:
+        pass
+    try:
+        # Custom-endpoint models are global, mutable state published by the
+        # router build. Without this, one test's fake gateway stays advertised
+        # in GET /v1/models for every test after it.
+        from packages.litellm_adapter import catalog
+        catalog.CUSTOM_CATALOG.clear()
+        catalog._CUSTOM_BY_KEY.clear()
+    except Exception:
+        pass
+    try:
         from packages.litellm_adapter import quality_index
         quality_index.reset_cache()
     except Exception:

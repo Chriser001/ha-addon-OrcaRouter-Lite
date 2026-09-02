@@ -5,9 +5,21 @@ Single-workspace edition: ~15 fields versus ~40 in the SaaS settings.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Any `<PROVIDER>_API_BASE` env var points that provider at a custom endpoint
+# (self-hosted gateway, regional mirror, OpenAI-compatible third party). Read
+# from the raw environment rather than declared pydantic fields precisely so
+# that providers we've never heard of work without editing this file — that's
+# the whole point of custom endpoints.
+_ENV_BASE_SUFFIX = "_API_BASE"
+# The hosted upstream has a dedicated setting (`orcarouter_base_url`) and its
+# own deployment branch in build_deployments; letting ORCAROUTER_API_BASE
+# silently change it here would fork its configuration surface.
+_HOSTED_PROVIDER_NAME = "orcarouter"
 
 # Providers we accept from env vars. Must stay in sync with:
 #   - the matching `<provider>_api_key` fields on Settings below
@@ -151,6 +163,25 @@ class Settings(BaseSettings):
             val = getattr(self, f"{prov}_api_key", None)
             if val:
                 out[prov] = val
+        return out
+
+    def env_provider_bases(self) -> dict[str, str]:
+        """Return {provider: api_base} for every `<PROVIDER>_API_BASE` in env.
+
+        Scanned from the raw environment (not declared fields) so an operator
+        can stand up `STEPFUN_API_BASE`, `SENSENOVA_API_BASE`, or anything else
+        without this file knowing the provider exists. A provider with a base
+        but no key is inert — `build_deployments` only wires up providers that
+        resolved a key from DB or env.
+        """
+        out: dict[str, str] = {}
+        for name, val in os.environ.items():
+            if not name.upper().endswith(_ENV_BASE_SUFFIX):
+                continue
+            prov = name[: -len(_ENV_BASE_SUFFIX)].lower()
+            if not prov or prov == _HOSTED_PROVIDER_NAME or not val:
+                continue
+            out[prov] = val.strip()
         return out
 
 

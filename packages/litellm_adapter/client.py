@@ -235,6 +235,28 @@ class OrcaLiteLLMClient:
                 if d.litellm_model == out.get("model") or d.model_name == out.get("model"):
                     provider = d.provider
                     break
+        else:
+            # But what LiteLLM reports is the WIRE PROTOCOL it spoke —
+            # "openai" for every OpenAI-compatible custom endpoint — not the
+            # provider the operator configured. When the served model maps to
+            # exactly one deployment and that deployment's configured protocol
+            # matches LiteLLM's report, LiteLLM is just echoing our own
+            # settings back; the deployment's logical provider (stepfun,
+            # my-gateway, orcarouter, ...) is the truthful attribution.
+            # Ambiguous matches (the same model_name under several providers)
+            # stay on LiteLLM's answer — guessing would be worse.
+            served = out.get("model")
+            bare = (
+                served.split("/", 1)[-1]
+                if isinstance(served, str) and "/" in served
+                else served
+            )
+            matches = [
+                d for d in self._deployments
+                if served in (d.litellm_model, d.model_name) or bare == d.model_name
+            ]
+            if len(matches) == 1 and matches[0].custom_llm_provider == litellm_provider:
+                provider = matches[0].provider
 
         out["_orca_meta"] = {
             "provider": provider,

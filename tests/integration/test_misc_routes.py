@@ -45,28 +45,55 @@ async def lite_client(tmp_sqlite_url, monkeypatch):
 
 
 # ── /v1/models ────────────────────────────────────────────────────────
+#
+# The listing is DEPLOYED models only — what this instance can actually
+# serve. A bare install (no provider keys) therefore lists nothing, so the
+# models tests run against a client with one provider configured.
 
-async def test_models_returns_openai_format_listing(lite_client):
+
+@pytest.fixture
+async def configured_client(lite_client):
     client, _ = lite_client
-    r = await client.get("/v1/models")
+    r = await client.put("/v1/providers/openai", json={"api_key": "sk-test-12345678"})
+    assert r.status_code == 200, r.text
+    return client
+
+
+async def test_models_lists_only_deployed_providers(configured_client):
+    """A configured provider's models are listed; an unconfigured one's are
+    not — advertising servable-and-nothing-else is what stops clients from
+    copying a catalog id and eating a 503."""
+    r = await configured_client.get("/v1/models")
     assert r.status_code == 200
     body = r.json()
     assert body["object"] == "list"
-    assert isinstance(body["data"], list)
-    assert len(body["data"]) > 0
+    ids = {m["id"] for m in body["data"]}
+    assert ids, "configured openai key must deploy its catalog models"
+    assert any(i.startswith("gpt-") for i in ids)
+    # anthropic has no key here — its models must not be advertised.
+    assert not any(i.startswith("claude-") for i in ids)
     sample = body["data"][0]
     assert sample["object"] == "model"
     assert "id" in sample
     assert "owned_by" in sample
 
 
-async def test_models_returns_anthropic_format_for_anthropic_clients(lite_client):
+async def test_models_empty_when_nothing_configured(lite_client):
+    """No keys → nothing is servable → nothing is advertised. The old
+    behavior (list the full catalog regardless) sent clients chasing
+    models that could only ever 503."""
+    client, _ = lite_client
+    r = await client.get("/v1/models")
+    assert r.status_code == 200
+    assert r.json()["data"] == []
+
+
+async def test_models_returns_anthropic_format_for_anthropic_clients(configured_client):
     """The native /v1/messages surface lives on the same base URL, so
     `client.models.list()` from the Anthropic SDK hits this path too. It
     always sends `anthropic-version` (no OpenAI client does), which is
     what selects the Anthropic envelope."""
-    client, _ = lite_client
-    r = await client.get("/v1/models", headers={"anthropic-version": "2023-06-01"})
+    r = await configured_client.get("/v1/models", headers={"anthropic-version": "2023-06-01"})
     assert r.status_code == 200
     body = r.json()
     assert "object" not in body  # not the OpenAI envelope
@@ -80,11 +107,10 @@ async def test_models_returns_anthropic_format_for_anthropic_clients(lite_client
     assert sample["created_at"].endswith("Z")
 
 
-async def test_models_without_anthropic_header_stays_openai_shaped(lite_client):
+async def test_models_without_anthropic_header_stays_openai_shaped(configured_client):
     """Regression guard: adding the Anthropic envelope must not change the
     default shape every OpenAI client depends on."""
-    client, _ = lite_client
-    r = await client.get("/v1/models", headers={"user-agent": "openai-python/1.0"})
+    r = await configured_client.get("/v1/models", headers={"user-agent": "openai-python/1.0"})
     assert r.json()["object"] == "list"
 
 

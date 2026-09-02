@@ -250,4 +250,83 @@ def all_model_ids() -> list[str]:
 
 
 def models_for_provider(provider: str) -> list[CatalogModel]:
+    """Catalog models for a provider, as known to litellm's `model_cost`.
+
+    Deliberately EXCLUDES models discovered from a custom endpoint: those live
+    in `CUSTOM_CATALOG` and are turned into deployments by `build_deployments`
+    from the live discovery result. Keeping the two pools separate is what
+    stops a discovered `O2-style.dotted.id` from being routed against a direct
+    vendor endpoint that never heard of it — the same hazard the hosted
+    supplement above avoids by staying out of `PROVIDERS_TO_MODELS`.
+    """
     return PROVIDERS_TO_MODELS.get(provider, [])
+
+
+# ── Custom-endpoint models (discovered at runtime) ───────────────────────
+# Filled by `build_deployments` after it asks a provider's `api_base` what
+# models it serves. Kept out of CATALOG / CATALOG_BY_ID / PROVIDERS_TO_MODELS
+# so it can't influence litellm-catalog-driven behavior (cost-based
+# auto-routing, capability filters) with entries that have no pricing and no
+# verified capabilities. These are pinnable and listable — not auto-routable.
+CUSTOM_CATALOG: list[CatalogModel] = []
+
+# (provider, model_id) -> entry. Keyed on both because two custom endpoints
+# can legitimately serve a model with the same bare id.
+_CUSTOM_BY_KEY: dict[tuple[str, str], CatalogModel] = {}
+
+
+def sync_custom_provider_models(
+    provider: str,
+    model_ids: list[str],
+    *,
+    litellm_prefix: str,
+) -> list[CatalogModel]:
+    """Replace this provider's discovered models with `model_ids`.
+
+    A full replace (not a merge) so a model the endpoint retired or renamed
+    disappears from `GET /v1/models` instead of lingering forever — the
+    discovery result is the endpoint's current truth, and stale ids would
+    otherwise 404 for anyone who copied them.
+
+    Mutates `CUSTOM_CATALOG` in place (slice assignment) rather than
+    rebinding: callers hold a reference to the list.
+    """
+    global CUSTOM_CATALOG
+
+    other = [m for m in CUSTOM_CATALOG if m.provider != provider]
+    fresh: list[CatalogModel] = []
+    for mid in sorted({m for m in model_ids if m}):
+        entry = _CUSTOM_BY_KEY.get((provider, mid))
+        if entry is None or entry.litellm_prefix != litellm_prefix:
+            entry = CatalogModel(
+                id=mid,
+                provider=provider,
+                litellm_prefix=litellm_prefix,
+            )
+        _CUSTOM_BY_KEY[(provider, mid)] = entry
+        fresh.append(entry)
+
+    CUSTOM_CATALOG[:] = other + fresh
+    return fresh
+
+
+def custom_models_for_provider(provider: str) -> list[CatalogModel]:
+    return [m for m in CUSTOM_CATALOG if m.provider == provider]
+
+
+def all_models() -> list[CatalogModel]:
+    """Every model this instance can serve: litellm catalog + custom endpoints.
+
+    Consumers that LIST models to a client must use this — reading `CATALOG`
+    directly hides every custom-endpoint provider.
+    """
+    return list(CATALOG) + list(CUSTOM_CATALOG)
+
+
+def find_model(model_id: str) -> CatalogModel | None:
+    """Look a model up across both the litellm catalog and custom endpoints.
+
+    For by-id endpoints (`GET /v1beta/models/{id}`) where a client may name a
+    model discovered from a custom endpoint — those aren't in `CATALOG_BY_ID`.
+    """
+    return CATALOG_BY_ID.get(model_id) or {m.id: m for m in CUSTOM_CATALOG}.get(model_id)
