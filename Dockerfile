@@ -39,11 +39,17 @@ COPY app/ app/
 COPY packages/ packages/
 COPY design/ design/
 COPY scripts/ scripts/
+COPY run.sh /run.sh
 
 RUN useradd -m orca \
     && mkdir -p /data \
-    && chown -R orca:orca /app /data
-USER orca
+    && chown -R orca:orca /app /data \
+    && chmod +x /run.sh
+
+# HA add-on build: Supervisor mounts /data/options.json root-owned and maps
+# addon_configs/<slug> to /addon_config — both need root. Plain docker-compose
+# use is unaffected (root just means the service no longer drops privileges).
+USER root
 
 EXPOSE 8000
 
@@ -51,4 +57,7 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/health')" || exit 1
 
 ENV PYTHONPATH=/app
+# /run.sh turns /data/options.json into env vars when running as a HA add-on;
+# without options.json it execs CMD unchanged (docker-compose behaviour).
+ENTRYPOINT ["/run.sh"]
 CMD ["python", "scripts/start.py"]
