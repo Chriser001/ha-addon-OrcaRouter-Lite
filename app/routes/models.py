@@ -57,7 +57,7 @@ async def deployed_models(db: AsyncSession) -> list[CatalogModel]:
         if d.model_name in seen:
             continue
         seen.add(d.model_name)
-        m = find_model(d.model_name)
+        m = find_model(d.model_name, provider=d.provider)
         if m is None:
             # Routable but metadata-less (a custom endpoint whose model list
             # changed between discovery and this call). Still listed — it IS

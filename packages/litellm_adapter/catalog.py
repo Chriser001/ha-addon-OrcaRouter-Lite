@@ -333,10 +333,25 @@ def all_models() -> list[CatalogModel]:
     return list(CATALOG) + list(CUSTOM_CATALOG)
 
 
-def find_model(model_id: str) -> CatalogModel | None:
+def find_model(model_id: str, provider: str | None = None) -> CatalogModel | None:
     """Look a model up across both the litellm catalog and custom endpoints.
 
     For by-id endpoints (`GET /v1beta/models/{id}`) where a client may name a
     model discovered from a custom endpoint — those aren't in `CATALOG_BY_ID`.
+
+    When `provider` is given (the live deployment's provider), a custom
+    endpoint entry for exactly that (provider, model_id) wins, and a built-in
+    entry whose provider differs is NOT returned: a stale litellm map can list
+    `deepseek-v4-flash` under fireworks while the deployment actually points at
+    the official DeepSeek API — labeling it fireworks would be a lie. Callers
+    fall back to the deployment's own provider when this returns None.
     """
+    if provider is not None:
+        custom = _CUSTOM_BY_KEY.get((provider, model_id))
+        if custom is not None:
+            return custom
+        builtin = CATALOG_BY_ID.get(model_id)
+        if builtin is not None and builtin.provider == provider:
+            return builtin
+        return None
     return CATALOG_BY_ID.get(model_id) or {m.id: m for m in CUSTOM_CATALOG}.get(model_id)
