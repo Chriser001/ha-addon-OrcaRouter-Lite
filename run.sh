@@ -15,9 +15,12 @@ import json
 with open("/data/options.json") as f:
     opts = json.load(f)
 
-# Persistent data lives in the Supervisor-mapped addon_config dir. An
-# explicit database_url in options overrides this default.
-env = {"DATABASE_URL": "sqlite+aiosqlite:////addon_config/orca.db"}
+# Persistent data lives in the Supervisor-mapped config dir. On this
+# Supervisor build, `map: addon_config:rw` mounts addon_configs/<slug> at
+# /config (NOT /addon_config) — an unmapped dir would land in the container
+# layer and vanish on rebuild. An explicit database_url in options overrides
+# this default.
+env = {"DATABASE_URL": "sqlite+aiosqlite:////config/orca.db"}
 env.update({k: v for k, v in opts.items()})
 
 out = []
@@ -38,7 +41,7 @@ for key, value in env.items():
 print("\n".join(out))
 PY
 )"
-    mkdir -p /addon_config
+    mkdir -p /config
 fi
 
 exec "$@"

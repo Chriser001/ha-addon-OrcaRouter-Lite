@@ -1,5 +1,5 @@
 name: OrcaRouter Lite
-version: 0.1.1
+version: 0.1.2
 slug: orcarouter_lite
 description: Self-hosted LLM router with a managed safety net — OpenAI-compatible, BYOK, model="auto". Dashboard + API on port 8000 (LAN only).
 url: https://github.com/Chriser001/ha-addon-OrcaRouter-Lite
