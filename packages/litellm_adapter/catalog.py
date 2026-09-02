@@ -100,7 +100,17 @@ def _build_catalog_from_litellm() -> list[CatalogModel]:
     seen: set[str] = set()
     model_cost = getattr(litellm, "model_cost", {}) or {}
 
-    for raw_id, meta in model_cost.items():
+    # Iterate canonical (prefix-less) entries before provider-prefixed ones so
+    # a duplicate like `deepseek-v4-flash` (official) vs
+    # `fireworks_ai/deepseek-v4-flash` (third-party host) resolves to the
+    # official provider regardless of litellm's dict insertion order. Python's
+    # sort is stable, so relative order within each group is preserved.
+    model_items = sorted(
+        model_cost.items(),
+        key=lambda kv: "/" in kv[0],
+    )
+
+    for raw_id, meta in model_items:
         if not isinstance(meta, dict):
             continue
         litellm_provider = meta.get("litellm_provider", "")
