@@ -174,12 +174,15 @@ def build_deployments(
         endpoint = endpoints.get(provider)
         if endpoint is not None:
             prefix = resolve_protocol(provider, endpoint.protocol, models)
-            # A custom endpoint either proxies a vendor we already know
-            # (keep its catalog models — the whole point of proxying
-            # "openai" is to keep serving the same model ids) or it's an
-            # endpoint litellm has never heard of, in which case the only
-            # model list that exists is the one we discovered from it.
-            model_ids = [m.id for m in models] if models else custom_models.get(provider, [])
+            # A custom endpoint either proxies a vendor we already know or is
+            # one litellm has never heard of. Either way the *discovered* list
+            # is the endpoint's current truth (its /models response); the
+            # built-in catalog is only a fallback when discovery yielded
+            # nothing (endpoint unreachable at build time).
+            discovered = custom_models.get(provider)
+            model_ids = (
+                discovered if discovered else [m.id for m in models]
+            )
             for model_id in model_ids:
                 deployments.append(
                     ProviderDeployment(
@@ -269,8 +272,6 @@ async def discover_custom_models(
 
     for provider, endpoint in endpoints.items():
         prefix = resolve_protocol(provider, endpoint.protocol, [])
-        if models_for_provider(provider):
-            continue
         ids = await discover_provider_models(
             provider=provider,
             base_url=endpoint.api_base,
@@ -278,7 +279,11 @@ async def discover_custom_models(
             force_refresh=force_refresh,
         )
         # Publish the truthful list — including empty, so a gateway that went
-        # away stops advertising models clients can no longer reach.
+        # away stops advertising models clients can no longer reach. Note we do
+        # NOT skip providers that have built-in catalog entries: the catalog is
+        # a snapshot from litellm's model_cost that can lag the vendor's real
+        # endpoint (e.g. DeepSeek retired deepseek-chat/reasoner while the map
+        # still lists them). The endpoint is the current truth.
         sync_custom_provider_models(provider, ids, litellm_prefix=prefix)
         if ids:
             out[provider] = ids
