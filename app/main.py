@@ -207,6 +207,7 @@ def create_app() -> FastAPI:
 
     from app.routes import (
         analytics,
+        analytics_network,
         anthropic_compat,
         chat,
         gemini_compat,
@@ -214,6 +215,7 @@ def create_app() -> FastAPI:
         hosted,
         keys,
         models,
+        network,
         providers,
         quality,
         routing,
@@ -221,6 +223,8 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(providers.router)
+    app.include_router(network.router)
+    app.include_router(analytics_network.router)
     app.include_router(chat.router)
     app.include_router(anthropic_compat.router)
     app.include_router(gemini_compat.router)

@@ -103,6 +103,16 @@
           <span data-i18n="nav.quality">Quality</span>
           <kbd>6</kbd>
         </button>
+        <button data-tab="network" class="nav-item" data-shortcut="7">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span data-i18n="nav.network">Network</span>
+          <kbd>7</kbd>
+        </button>
+        <button data-tab="network-analytics" class="nav-item" data-shortcut="8">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span data-i18n="nav.network_analytics">Network analytics</span>
+          <kbd>8</kbd>
+        </button>
       </nav>
 
       <div class="sidebar-foot">
@@ -673,6 +683,242 @@
             <p class="card-foot small muted">
               <span data-i18n-html="ui.quality.powered">Powered by <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">Artificial Analysis</a> — Intelligence Index aggregates MMLU-Pro, GPQA, MATH, HumanEval, and other benchmarks. Attribution required.</span>
             </p>
+          </article>
+        </section>
+        <!-- ─────────────── Network (search + fetch) ─────────────── -->
+        <section id="panel-network" class="panel">
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title" id="network-pane-title">Web search</h2>
+                <p class="card-sub" id="network-pane-sub">One request shape, several upstream providers.</p>
+              </div>
+              <div class="seg" id="network-seg">
+                <button class="seg-btn active" data-pane="search" data-i18n="network.tab_search">Search</button>
+                <button class="seg-btn" data-pane="fetch" data-i18n="network.tab_fetch">Fetch</button>
+              </div>
+            </header>
+
+            <!-- ── Search pane ── -->
+            <div id="network-search-pane">
+              <form id="network-search-form" class="inline-form">
+                <label class="field flex-grow">
+                  <span class="field-label" data-i18n="network.query">Query</span>
+                  <input id="network-query" type="text" autocomplete="off" spellcheck="false"
+                         placeholder="What are you looking for?">
+                </label>
+                <label class="field flex-grow-0">
+                  <span class="field-label" data-i18n="network.provider">Provider</span>
+                  <select id="network-search-provider"></select>
+                </label>
+                <label class="field flex-grow-0">
+                  <span class="field-label" data-i18n="network.strategy">Strategy</span>
+                  <select id="network-search-strategy">
+                    <option value="random" data-i18n="network.strategy_random">Weighted random</option>
+                    <option value="quota" data-i18n="network.strategy_quota">Quota balance</option>
+                    <option value="latency" data-i18n="network.strategy_latency">Fastest first</option>
+                    <option value="explicit" data-i18n="network.strategy_explicit">Pinned</option>
+                  </select>
+                </label>
+                <label class="field flex-grow-0">
+                  <span class="field-label" data-i18n="network.max_results">Max results</span>
+                  <input id="network-max-results" type="number" min="1" max="20" value="5">
+                </label>
+                <button type="submit" class="btn btn-primary" id="network-search-run">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <span data-i18n="network.run">Run</span>
+                </button>
+              </form>
+              <div id="network-search-params" class="provider-quickadd"></div>
+              <div id="network-search-result"></div>
+            </div>
+
+            <!-- ── Fetch pane ── -->
+            <div id="network-fetch-pane" hidden>
+              <form id="network-fetch-form" class="inline-form">
+                <label class="field flex-grow">
+                  <span class="field-label" data-i18n="network.urls">URLs (one per line)</span>
+                  <textarea id="network-urls" rows="3" spellcheck="false"
+                            placeholder="https://example.com"></textarea>
+                </label>
+                <label class="field flex-grow-0">
+                  <span class="field-label" data-i18n="network.provider">Provider</span>
+                  <select id="network-fetch-provider"></select>
+                </label>
+                <label class="field flex-grow-0">
+                  <span class="field-label" data-i18n="network.strategy">Strategy</span>
+                  <select id="network-fetch-strategy">
+                    <option value="random" data-i18n="network.strategy_random">Weighted random</option>
+                    <option value="quota" data-i18n="network.strategy_quota">Quota balance</option>
+                    <option value="latency" data-i18n="network.strategy_latency">Fastest first</option>
+                    <option value="explicit" data-i18n="network.strategy_explicit">Pinned</option>
+                  </select>
+                </label>
+                <button type="submit" class="btn btn-primary" id="network-fetch-run">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><line x1="8" y1="6" x2="8" y2="18"/></svg>
+                  <span data-i18n="network.run">Run</span>
+                </button>
+              </form>
+              <div id="network-fetch-params" class="provider-quickadd"></div>
+              <div id="network-fetch-result"></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title" data-i18n="network.providers_title">Search providers</h2>
+                <p class="card-sub" data-i18n="network.providers_sub">
+                  Hidden providers stay pinnable by name but are dropped from automatic selection.
+                </p>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="network-providers-refresh" data-i18n="common.reset">Reset</button>
+            </header>
+            <div class="table-wrap">
+              <table id="network-providers-table">
+                <thead><tr>
+                  <th data-i18n="network.col_provider">Provider</th>
+                  <th data-i18n="network.col_tier">Tier</th>
+                  <th data-i18n="network.col_status">Status</th>
+                  <th data-i18n="network.col_weight">Weight</th>
+                  <th data-i18n="network.col_quota">Quota (used / monthly)</th>
+                  <th data-i18n="network.col_latency">p50</th>
+                  <th class="th-actions"></th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+              <div class="empty-state" id="network-providers-empty" hidden>
+                <div class="empty-illustration">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </div>
+                <h3 data-i18n="network.providers_empty_title">No providers registered</h3>
+                <p data-i18n="network.providers_empty_sub">Restart the server — providers are seeded from the built-in registry.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ─────────────── Network analytics ─────────────── -->
+        <section id="panel-network-analytics" class="panel">
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <div class="kpi-head">
+                <span class="kpi-label" data-i18n="na.requests">Requests</span>
+                <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+              </div>
+              <div class="kpi-value" id="na-kpi-requests">0</div>
+              <div class="kpi-sub" id="na-kpi-requests-sub">—</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-head">
+                <span class="kpi-label" data-i18n="na.success">Success rate</span>
+                <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="kpi-value" id="na-kpi-success">—</div>
+              <div class="kpi-sub" id="na-kpi-success-sub">—</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-head">
+                <span class="kpi-label" data-i18n="na.p50">p50 latency</span>
+                <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="kpi-value" id="na-kpi-p50">— ms</div>
+              <div class="kpi-sub" id="na-kpi-p50-sub">—</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-head">
+                <span class="kpi-label" data-i18n="na.providers_active">Active providers</span>
+                <svg class="kpi-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="14"/></svg>
+              </div>
+              <div class="kpi-value" id="na-kpi-providers">—</div>
+              <div class="kpi-sub" id="na-kpi-providers-sub">—</div>
+            </article>
+          </div>
+
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title" data-i18n="na.by_provider">Requests by provider</h2>
+                <p class="card-sub" id="na-summary-sub">—</p>
+              </div>
+              <div class="seg" id="na-window-seg">
+                <button class="seg-btn" data-days="1">24h</button>
+                <button class="seg-btn active" data-days="7">7d</button>
+                <button class="seg-btn" data-days="30">30d</button>
+              </div>
+            </header>
+            <div class="bar-chart" id="na-bar-chart"></div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title" data-i18n="na.usage_title">Latency by provider</h2>
+                <p class="card-sub" data-i18n="na.usage_sub">p50 and p99 across the selected window.</p>
+              </div>
+            </header>
+            <div class="table-wrap">
+              <table id="na-usage-table">
+                <thead><tr>
+                  <th data-i18n="network.col_provider">Provider</th>
+                  <th data-i18n="na.requests">Requests</th>
+                  <th data-i18n="na.success">Success rate</th>
+                  <th>p50</th>
+                  <th>p99</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title" data-i18n="na.quota_title">Free-tier quotas</h2>
+                <p class="card-sub" data-i18n="na.quota_sub">Local accounting of each provider's monthly allowance.</p>
+              </div>
+            </header>
+            <div class="table-wrap">
+              <table id="na-quota-table">
+                <thead><tr>
+                  <th data-i18n="network.col_provider">Provider</th>
+                  <th data-i18n="network.col_quota">Quota (used / monthly)</th>
+                  <th data-i18n="na.col_remaining">Remaining</th>
+                  <th data-i18n="na.col_resets">Resets</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title" data-i18n="na.recent_title">Recent network requests</h2>
+                <p class="card-sub" data-i18n="na.recent_sub">Newest first. Click a row to copy its provider.</p>
+              </div>
+            </header>
+            <div class="table-wrap">
+              <table id="na-recent-table">
+                <thead><tr>
+                  <th data-i18n="na.col_when">When</th>
+                  <th data-i18n="na.col_kind">Kind</th>
+                  <th data-i18n="network.col_provider">Provider</th>
+                  <th data-i18n="network.strategy">Strategy</th>
+                  <th data-i18n="na.col_results">Results</th>
+                  <th data-i18n="na.col_latency">Latency</th>
+                  <th data-i18n="na.col_status">Status</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+              <div class="empty-state" id="na-recent-empty" hidden>
+                <div class="empty-illustration">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+                </div>
+                <h3 data-i18n="na.no_traffic">No network traffic yet</h3>
+                <p data-i18n="na.no_traffic_sub">Run a search or fetch from the Network page and it will appear here.</p>
+              </div>
+            </div>
           </article>
         </section>
       </div>

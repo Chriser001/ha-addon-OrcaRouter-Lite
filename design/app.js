@@ -70,8 +70,9 @@ const I18N = {
     "ui.quality.powered":"Powered by <a href=\"https://artificialanalysis.ai\" target=\"_blank\" rel=\"noopener\">Artificial Analysis</a> — Intelligence Index aggregates MMLU-Pro, GPQA, MATH, HumanEval, and other benchmarks. Attribution required.","ui.help.what_title":"What is OrcaRouter Lite?","ui.help.what_body":"A self-hosted, OpenAI-compatible LLM router. Bring your own provider keys (BYOK), point any OpenAI SDK at the local base URL, and the router picks the cheapest capable model for each request — with optional fallback to hosted <a href=\"https://api.orcarouter.ai\" target=\"_blank\" rel=\"noreferrer\">api.orcarouter.ai</a>.","ui.help.quick_title":"60-second quickstart","ui.help.qs1":"Add a provider key under <a href=\"#\" data-go-tab=\"providers\">Providers</a> (or set <code>OPENAI_API_KEY</code> in your env).",
     "ui.help.qs2":"Optionally choose a <a href=\"#\" data-go-tab=\"routing\">routing strategy</a>.","ui.help.qs3":"Use this URL as your OpenAI <code>base_url</code>: <code id=\"help-base-url\">http://localhost:8000/v1</code>","ui.help.qs4":"Use the <code>sk-orca-*</code> key you signed in with as the API key.","ui.help.kb_title":"Keyboard shortcuts","ui.help.kb_tabs":"Switch tabs",
     "ui.help.kb_palette":"Command palette","ui.help.kb_help":"Toggle this help","ui.help.kb_close":"Close drawers / palette","ui.help.further_title":"Going further",
+    "nav.network":"Network","nav.network_analytics":"Network analytics","tab.network.title":"Network","tab.network.sub":"Aggregate web search & fetch across free and free-tier providers.","tab.network_analytics.title":"Network analytics","tab.network_analytics.sub":"Usage, latency and quota for the aggregated search & fetch surface.","palette.go_network":"Go to Network","palette.go_network_analytics":"Go to Network analytics","network.tab_search":"Search","network.tab_fetch":"Fetch","network.search_title":"Web search","network.search_sub":"One request shape, several upstream providers. The one that answers is reported back.","network.fetch_title":"Fetch pages","network.fetch_sub":"Extract readable content from up to 10 URLs.","network.query":"Query","network.query_ph":"What are you looking for?","network.urls":"URLs (one per line)","network.provider":"Provider","network.strategy":"Strategy","network.max_results":"Max results","network.run":"Run","network.running":"Running…","network.provider_auto":"Auto (strategy picks)","network.strategy_random":"Weighted random","network.strategy_quota":"Quota balance","network.strategy_latency":"Fastest first","network.strategy_explicit":"Pinned","network.params_show":"{prov} options","network.served_by":"Served by","network.strategy_label":"Strategy","network.latency":"Latency","network.results_count":"{n} results","network.failover":"Failover","network.empty_results":"No results returned.","network.providers_title":"Search providers","network.providers_sub":"Every registered provider, always listed here. Disable one to drop it from automatic selection.","network.providers_empty_title":"No providers registered","network.providers_empty_sub":"Restart the server — providers are seeded from the built-in registry.","network.col_provider":"Provider","network.col_tier":"Tier","network.col_status":"Status","network.col_weight":"Weight","network.col_quota":"Quota (used / monthly)","network.col_latency":"p50","network.tier_keyless":"keyless","network.tier_quota":"free tier","network.cap_search":"search","network.cap_fetch":"fetch","network.key_env":"env key","network.key_env_title":"Set via environment variable — edit .env and restart to change.","network.no_key":"no key","network.enabled":"Enabled","network.disabled":"Disabled","network.act_key":"Key","network.act_enable":"Enable","network.act_disable":"Disable","network.act_refresh":"Refresh","network.act_quota":"Quota","network.act_quota_title":"Pull the live balance from the vendor","network.quota_refreshed":"Synced {prov} balance","network.per_minute":"min","network.per_hour":"hour","network.per_day":"day","network.key_prompt":"API key for {prov} (leave empty to clear):","network.key_saved":"Saved {prov} key","network.key_cleared":"Cleared {prov} key","network.weight_prompt":"Weight for {prov} (0 = never auto-selected):","network.weight_saved":"Weight {prov} = {w}","network.cooldown":"cooling down","network.load_err":"Couldn't load providers: {msg}","network.err_query_required":"Query cannot be empty","network.err_urls_required":"Add at least one URL","na.requests":"Requests","na.success":"Success rate","na.p50":"p50 latency","na.providers_active":"Active providers","na.providers_active_sub":"of {n} configured","na.by_provider":"Requests by provider","na.summary_sub":"Last {days}d · {n} network requests","na.usage_title":"Latency by provider","na.usage_sub":"p50 and p99 across the selected window.","na.quota_title":"Free-tier quotas","na.quota_sub":"Local accounting of each provider's monthly allowance. Unmetered providers show —.","na.recent_title":"Recent network requests","na.recent_sub":"Newest first. Click a row to copy its provider.","na.col_when":"When","na.col_kind":"Kind","na.col_results":"Results","na.col_latency":"Latency","na.col_status":"Status","na.col_remaining":"Remaining","na.col_resets":"Resets","na.kind_search":"Search","na.kind_fetch":"Fetch","na.no_traffic":"No network traffic yet","na.no_traffic_sub":"Run a search or fetch from the Network page and it will appear here.","na.unmetered":"unmetered","na.load_err":"Couldn't load network analytics: {msg}",
   },
-  zh: { "auth.tagline":"开源。单租户。", "auth.welcome":"欢迎回来", "auth.subtitle":"粘贴首次运行时服务器日志中的 sk-orca-* 密钥。仅保存在此浏览器 localStorage。", "auth.api_key":"API 密钥", "auth.continue":"继续", "nav.search":"搜索", "nav.overview":"概览", "nav.providers":"供应商", "nav.routing":"路由", "nav.analytics":"分析", "nav.api_keys":"API 密钥", "nav.help_docs":"帮助与文档", "nav.sign_out":"退出登录", "status.connected":"已连接", "status.disconnected":"已断开", "auth.checking":"正在检查…", "auth.welcome_aboard":"欢迎使用。", "auth.key_invalid":"该密钥无效，请检查前缀 sk-orca-…", "tab.overview.title":"概览", "tab.overview.sub":"一览你的单租户 LLM 路由器。", "tab.providers.title":"供应商密钥", "tab.providers.sub":"BYOK — 静态加密存储，用于调用上游 LLM。", "tab.routing.title":"路由", "tab.routing.sub":"model='auto' 如何为每个请求选择合适模型。", "tab.analytics.title":"分析", "tab.analytics.sub":"仅本地的花费、延迟和请求历史。", "tab.keys.title":"API 密钥", "tab.keys.sub":"用于在此 Lite 工作区中验证客户端的令牌。", "nav.quality":"质量", "tab.quality.title":"质量分数", "tab.quality.sub":"真实 benchmark 分数驱动 quality 路由策略,数据来自 Artificial Analysis。", "providers.base_url":"接口地址", "providers.optional":"可选", "providers.endpoint":"端点", "providers.endpoint_default":"默认", "providers.rescan":"重新扫描", "common.request_failed":"请求失败", "common.copy_ok":"已复制到剪贴板", "common.copy_blocked":"复制失败 — 浏览器已阻止", "common.remove":"删除", "common.enabled":"已启用", "common.disabled":"已禁用", "common.active":"生效中", "common.revoked":"已撤销", "common.revoke":"撤销", "common.never":"从未", "common.reset":"重置", "common.set":"设置", "common.not_configured":"未配置", "common.no_matches":"无匹配", "time.seconds_ago":"{sec} 秒前", "time.minutes_ago":"{min} 分钟前", "time.hours_ago":"{hrs} 小时前", "providers.quick_add":"快捷添加：", "providers.env_title":"通过 .env / 环境变量设置；修改 env 文件并重启后生效。", "providers.endpoint_default_title":"厂商默认端点 — 模型来自内置目录。", "providers.rescan_title":"重新从此端点拉取模型", "providers.env_managed_title":"从 .env 中移除 OPENAI_API_KEY（或对应变量）并重启服务器。", "providers.remove_confirm":"删除 {prov} 的密钥？路由到 {prov} 的请求将开始失败。", "providers.removed":"已删除 {prov}", "providers.chip_env_title":"{label} 通过 .env 设置。点击可用自定义密钥覆盖（将写入优先的数据库记录）。", "providers.env_override":"(env，可覆盖)", "providers.name_required":"必须填写供应商名称", "providers.key_empty":"API 密钥不能为空", "providers.saved":"已保存 {provider} 的密钥", "providers.found_model":"在 {prov} 上发现 {count} 个模型", "providers.found_models":"在 {prov} 上发现 {count} 个模型", "providers.load_err":"无法加载供应商：{msg}", "routing.load_err":"无法加载路由：{msg}", "routing.strategy_saved":"路由策略：{val}", "analytics.load_err":"无法加载分析：{msg}", "analytics.no_spend":"此时间窗口暂无花费数据。", "analytics.no_spend_hint":"通过 <code>/v1/chat/completions</code> 发送请求后，可在此查看花费。", "analytics.no_data_window":"此时间窗口暂无数据。", "analytics.spend_summary":"最近 <strong>{days} 天</strong> · 共 <strong>{n}</strong> 次请求，花费 <strong>{cost}</strong>", "analytics.chart_tooltip":"{n} 次请求，{cost}", "analytics.req":"次", "analytics.trace_tip":"点击复制 Trace ID", "analytics.no_requests":"暂无请求。", "analytics.no_requests_hint":"发送首次 <code>chat.completions</code> 调用后，它会显示在这里。", "keys.load_err":"无法加载密钥：{msg}", "keys.empty":"暂无密钥。请在上方创建。", "keys.revoke_confirm":"撤销“{name}”？使用它的客户端将立即开始收到 401。", "keys.revoked":"已撤销 {name}", "keys.name_required":"请先为密钥命名", "keys.created":"已创建 {name}", "hosted.no_history":"暂无足够的可比请求历史 — 产生流量后，此卡片将显示通过 hosted-auto 路由可节省的金额。", "hosted.savings_detected":"每个请求经 hosted-auto 路由到目录中最便宜的模型，预计还可节省最多 <strong>{amount}</strong>（占可比流量花费的 {pct}%）。", "hosted.already_optimal":"已达最优 — 每个可比请求的当前路由均已匹配最便宜的 hosted-auto 选择。", "hosted.env_active":"通过环境变量生效（<code>ORCAROUTER_API_KEY</code>）。目录中所有模型均可达；如需停用，请取消该环境变量并重启。", "hosted.db_active":"已通过面板启用。目录中所有模型均可达。", "hosted.activate_ok":"已启用 Hosted 回退 — 所有模型现在均可达", "hosted.disable_confirm":"停用 Hosted 回退？没有本地密钥的模型请求将开始失败。", "hosted.disabled":"已停用 Hosted 回退", "hosted.paste_hint":"请粘贴来自 orcarouter.ai/console/token 的 sk-orca-* 密钥", "hosted.clipboard_empty":"剪贴板为空 — 请先复制 sk-orca-* 密钥", "hosted.paste_blocked":"浏览器阻止了剪贴板访问 — 请用 Ctrl+V 粘贴", "quality.load_err":"无法加载质量分数：{msg}", "quality.source_live":"实时", "quality.source_stale_aa":"过期（AA 不可达）", "quality.source_stale_db":"过期（DB 快照）", "quality.source_error":"错误", "quality.source_no_key":"无 API 密钥", "quality.source_unknown":"未知", "quality.status_fmt":"目录中 <strong>{total}</strong> 个 AA 模型已匹配 <strong>{matched}</strong> 个 · <strong>{overrides}</strong> 个手动覆盖", "quality.empty":"目录中暂无模型。", "quality.aa_title":"Artificial Analysis 智能指数", "quality.tps_title":"每秒输出 Token（AA 中位数，推理变体取最大）", "quality.ttft_title":"首 Token 时间（秒，AA 中位数，各变体取最小 — 非推理快速模式）", "quality.reset_title":"还原为 AA 分数", "quality.unscored":"未评分", "quality.deployable":"可部署", "quality.no_key":"无密钥", "quality.no_deployable":"没有可部署模型满足当前能力要求。请在“供应商”页配置供应商密钥。", "quality.score_fmt":"分数 {score}", "quality.falls_back_fmt":"→ 回退至：{list}", "quality.strategy_prefix":"策略：", "quality.scoring_prefix":"评分：", "quality.prompt_score":"为 {model} 设置手动质量分数（0-100）：", "quality.prompt_aa_hint":"AA 分数当前为：{score}", "quality.prompt_note":"可选备注（覆盖原因）：", "quality.score_range":"分数必须是 0 到 100 之间的数字", "quality.override_set":"已为 {model} 设置覆盖", "quality.reset_confirm":"将 {model} 重置为 AA 分数？", "quality.reset_done":"已重置 {model}", "quality.refreshed":"已从 Artificial Analysis 刷新分数", "quality.refresh_failed":"刷新失败：{msg}", "overview.across_reqs":"共 {n} 次请求", "overview.vs_gpt4o_off":"对比始终使用 GPT-4o（省 {pct}%）", "overview.vs_gpt4o_base":"对比始终使用 GPT-4o 基线", "overview.already_optimal":"已达最优", "overview.provider_1":"{n} 个供应商已配置", "overview.provider_n":"{n} 个供应商已配置", "palette.go_overview":"前往概览", "palette.go_providers":"前往供应商", "palette.go_routing":"前往路由", "palette.go_analytics":"前往分析", "palette.go_keys":"前往 API 密钥", "palette.copy_base":"复制 Base URL", "palette.copy_snippet":"复制快速入门代码", "palette.open_help":"打开帮助与文档", "palette.open_docs":"打开 docs.orcarouter.ai", "palette.open_site":"打开 orcarouter.ai", "palette.get_hosted_key":"获取 Hosted API 密钥（orcarouter.ai/console/token）", "palette.logout":"退出登录（清除 API 密钥）", "palette.meta_tab":"标签页", "palette.meta_action":"操作", "palette.meta_help":"帮助", "palette.meta_link":"链接", "auth.signed_out":"已退出登录 — 本设备上的密钥已清除", "unreachable.per_1m":"每 1M", "unreachable.provider_prefix":"供应商：", "ui.auth.find_key":"在哪里找到我的密钥？", "ui.auth.run_li":"运行 <code>docker compose up</code>（或 <code>uvicorn app.main:app</code>）。", "ui.auth.first_run_li":"首次启动时，服务器会打印：<br><code class=\"code-block\">✓ orcarouter-lite ready. API key: sk-orca-...</code>", "ui.auth.copy_paste":"复制该字符串并粘贴到上方输入框。", "ui.auth.reset_p":"找不到了？删除 <code>orcarouter.db</code>（以及 <code>data/</code> 数据卷）后重启，即可重置工作区。", "ui.common.language":"语言", "ui.common.copy_base_tip":"复制你的 Base URL", "ui.common.logout_tip":"清除 API 密钥（本设备）", "ui.overview.spend_tip":"最近 7 天的所有上游成本之和", "ui.overview.spend_label":"花费（7 天）", "ui.overview.savings_tip":"上：同一流量的 GPT-4o 对比。下：hosted-auto 通过触达你没有密钥的更便宜模型可解锁的额外节省。", "ui.overview.routing_savings":"路由节省", "ui.overview.vs_hosted_auto":"对比 hosted-auto", "ui.overview.latency_tip":"最近请求的真实中位延迟（原始样本，非平均值）", "ui.overview.p50_label":"p50 延迟", "ui.overview.models_tip":"从已配置的供应商密钥与目录发现的模型", "ui.overview.models_label":"可用模型", "ui.overview.quick_start":"快速开始", "ui.overview.quick_sub":"已就绪 — 将任意 OpenAI SDK 指向你的 Base URL。", "ui.common.copy_snippet_tip":"复制示例代码", "ui.overview.auto_hint":"使用 <code>model=\"auto\"</code> 让路由器挑选最便宜且满足能力的模型。", "ui.overview.recent_title":"最近活动", "ui.overview.recent_sub":"最近经由此服务器路由的 5 次请求。", "ui.common.view_all":"查看全部", "ui.hosted.title":"Hosted 回退<span class=\"pill\" id=\"hosted-status-pill\">Not configured</span>", "ui.hosted.card_sub":"一个密钥，所有模型。任何你没有本地密钥的模型的标准回退方案。注册即送 <strong>$5</strong> 试用额度 — 无需信用卡。", "ui.hosted.get_key_on_site":"在 orcarouter.ai 获取你的密钥", "ui.hosted.step1_hint":"在新标签页打开 Token 控制台 — 在那里复制你的 <code>sk-orca-*</code> 密钥。", "ui.hosted.register":"还没有账号？注册即享 $5 免费额度", "ui.hosted.step2_hint":"回到这里，粘贴密钥并激活。", "ui.hosted.api_key_label":"Hosted API 密钥", "ui.hosted.paste_tip":"从剪贴板粘贴", "ui.common.paste":"粘贴", "ui.hosted.activate":"激活回退", "ui.hosted.unreachable_intro":"今天无法触达的模型 — hosted 可解锁全部：", "ui.hosted.disable_tip":"停用 Hosted 回退", "ui.hosted.remove_key":"移除密钥", "ui.hosted.onboarding_title":"新来的？两分钟完成全部设置", "ui.hosted.onb1":"<span class=\"check\"></span>至少添加一个<a href=\"#\" data-go-tab=\"providers\">供应商密钥</a>", "ui.hosted.onb2":"<span class=\"check\"></span>选择<a href=\"#\" data-go-tab=\"routing\">路由策略</a>", "ui.hosted.onb3":"<span class=\"check\"></span>发送你的第一个请求（它会出现在<a href=\"#\" data-go-tab=\"analytics\">分析</a>中）", "ui.hosted.title_prov":"Hosted 回退<span class=\"pill\" id=\"providers-hosted-pill\">Not configured</span>", "ui.hosted.prov_sub":"无需逐个供应商注册即可覆盖长尾。免费 <strong>$5</strong> 额度，之后按成本计费。", "ui.hosted.get_key":"获取密钥", "ui.providers.title":"供应商密钥 <span class=\"pill\">BYOK</span>", "ui.providers.sub":"使用 AES-256-GCM 静态加密存储。同一供应商的 env 变量优先于数据库记录。", "ui.providers.name":"供应商", "ui.providers.api_key":"API 密钥", "ui.common.save_key":"保存密钥", "ui.common.provider":"供应商", "ui.common.prefix":"前缀", "ui.common.status":"状态", "ui.providers.empty_title":"尚无供应商密钥", "ui.providers.empty_sub":"至少添加一个即可开始路由真实流量。在上方选择供应商，或点击快捷添加。", "ui.routing.title":"路由策略", "ui.routing.sub":"当发送 <code>model=\"auto\"</code> 时，路由器如何在候选模型之间做选择。", "ui.routing.balanced":"均衡", "ui.routing.balanced_desc":"50/50 加权混合 AA 质量与成本。适合大多数团队的稳妥默认。", "ui.routing.recommended":"推荐", "ui.routing.cheapest":"最便宜", "ui.routing.cheapest_desc":"满足请求能力要求的前提下，每 Token 成本最低。", "ui.routing.fastest":"最快", "ui.routing.fastest_desc":"最高吞吐 + 最低首 Token 延迟，来自 Artificial Analysis 基准。适合聊天类 UI。", "ui.routing.quality":"质量", "ui.routing.quality_desc":"偏好前沿模型。最适合困难推理任务。", "ui.routing.pick_hint":"点击卡片即可切换策略，自动保存。", "ui.routing.how_title":"<code>model=\"auto\"</code> 如何工作", "ui.routing.how_sub":"三个过滤器，按顺序应用。", "ui.routing.cap_filter":"能力过滤。", "ui.routing.cap_desc":"路由器检查你的请求 — 是否包含图片？工具定义？<code>response_format=json</code>？— 并剔除无法处理的模型。", "ui.routing.prov_filter":"供应商过滤。", "ui.routing.prov_desc":"只有已配置供应商（或 hosted 上游覆盖）的模型才能存活。", "ui.routing.strat_rank":"策略排序。", "ui.routing.strat_rank_desc":"剩余候选按你上方选择的策略评分，胜出者被调用。", "ui.routing.resolved_hint":"所选模型会通过 <code>x-orca-resolved-model</code> 响应头返回给你的客户端；生效的策略以 <code>x-orca-routing-strategy</code> 回显。", "ui.routing.map_summary":"各策略如何映射到 LiteLLM Router", "ui.routing.map_strategy":"策略", "ui.routing.map_litellm":"litellm <code>routing_strategy</code>", "ui.routing.map_picks":"<code>model=\"auto\"</code> 的选择", "ui.routing.we_rank":"<code>None</code>（我们自行排序）", "ui.routing.map_balanced_desc":"50/50 归一化 AA 质量与反相成本；严格双轴覆盖", "ui.routing.map_cheapest_desc":"满足能力的最便宜选择（0.3 输入 + 0.7 输出混合成本）", "ui.routing.map_fastest_desc":"50/50 归一化 AA TPS 与反相 TTFT；严格双轴覆盖", "ui.routing.map_quality_desc":"最高 AA 智能指数（或手动覆盖）；未评分模型排在已评分之后", "ui.routing.map_foot":"策略控制两件事：<code>model=\"auto\"</code> 解析到哪个模型，以及 LiteLLM Router 如何在服务同一模型的部署之间选择（例如本地 OpenAI 密钥 + hosted 上游）。", "ui.analytics.spend_title":"按模型花费", "ui.analytics.latency_title":"按供应商延迟", "ui.analytics.latency_sub":"p50 与 p99 — 数据来自本地请求日志。", "ui.analytics.requests":"请求数", "ui.analytics.recent_title":"最近请求", "ui.analytics.recent_sub":"最新在前。点击行可复制其 Trace ID。", "ui.analytics.when":"时间", "ui.common.model":"模型", "ui.analytics.tokens":"Token（入 / 出）", "ui.analytics.latency":"延迟", "ui.analytics.no_traffic":"暂无流量", "ui.analytics.no_traffic_sub":"开始发送请求后，它们会实时显示在这里。", "ui.keys.intro":"每个密钥都用于在此 Lite 工作区验证客户端。明文仅在创建时显示<strong>一次</strong>。", "ui.keys.name":"名称", "ui.keys.create":"创建密钥", "ui.keys.save_warn":"请保存此密钥 — 之后不再显示。", "ui.common.copy_tip":"复制", "ui.keys.last_used":"最后使用", "ui.quality.setup_title":"设置质量评分", "ui.quality.setup_p1":"当前 <code>quality</code> 策略会选择最贵的模型 — 在新旗舰（Claude Opus 4.7、GPT-5.x）定价低于旧款后，这个代理逻辑已经失效。设置 Artificial Analysis API 密钥，改为按真实基准分数路由。", "ui.quality.setup_li1":"在 <a href=\"https://artificialanalysis.ai\" target=\"_blank\" rel=\"noopener\">artificialanalysis.ai</a> 免费注册并生成 API 密钥（免费档：每天 1,000 次请求，对 1 小时缓存足够）。", "ui.quality.setup_li2":"把它加到 <code>.env</code> 中的 <code>ARTIFICIAL_ANALYSIS_API_KEY=...</code> 并重启。", "ui.quality.setup_li3":"刷新此页面 — 分数会自动出现。", "ui.quality.setup_foot":"没有密钥时，<code>quality</code> 会回退到旧的基于成本的行为。<code>cheapest</code> / <code>balanced</code> / <code>fastest</code> 不受影响。你仍可在下方表格中对单个模型设置<strong>手动覆盖</strong> — 这些不需要 AA 密钥，存在时优先。", "ui.quality.refresh":"从 AA 刷新", "ui.quality.preview_title":"此刻 <code>model=\"auto\"</code> 将解析为：", "ui.quality.models_title":"模型", "ui.quality.models_sub":"编辑一行的<strong>手动</strong>列可覆盖路由决策所用的 AA 分数。手动值优先于 AA。当你的内部评估与其不一致、或 AA 尚未给某模型评分时使用。", "ui.quality.manual":"手动", "ui.quality.effective":"生效", "ui.quality.tps_th_title":"每秒输出 Token（Artificial Analysis 中位数，各推理变体取最大）。— AA 尚未收录该模型时无数据。", "ui.quality.ttft_th_title":"首 Token 时间（秒，Artificial Analysis 中位数，各变体取最小 — 该模型的非推理快速模式）。— AA 尚未收录该模型时无数据。", "ui.quality.blended":"$/M 混合", "ui.quality.powered":"由 <a href=\"https://artificialanalysis.ai\" target=\"_blank\" rel=\"noopener\">Artificial Analysis</a> 提供支持 — 智能指数聚合了 MMLU-Pro、GPQA、MATH、HumanEval 等基准。按要求注明出处。", "ui.help.what_title":"什么是 OrcaRouter Lite？", "ui.help.what_body":"自托管的 OpenAI 兼容 LLM 路由器。自带供应商密钥（BYOK），将任意 OpenAI SDK 指向本地 Base URL，路由器会为每个请求挑选最便宜且满足能力的模型 — 可选回退到托管的 <a href=\"https://api.orcarouter.ai\" target=\"_blank\" rel=\"noreferrer\">api.orcarouter.ai</a>。", "ui.help.quick_title":"60 秒快速开始", "ui.help.qs1":"在<a href=\"#\" data-go-tab=\"providers\">供应商</a>页添加供应商密钥（或在 env 中设置 <code>OPENAI_API_KEY</code>）。", "ui.help.qs2":"可选：选择<a href=\"#\" data-go-tab=\"routing\">路由策略</a>。", "ui.help.qs3":"将此 URL 用作 OpenAI <code>base_url</code>：<code id=\"help-base-url\">http://localhost:8000/v1</code>", "ui.help.qs4":"使用登录时的 <code>sk-orca-*</code> 密钥作为 API 密钥。", "ui.help.kb_title":"键盘快捷键", "ui.help.kb_tabs":"切换标签页", "ui.help.kb_palette":"命令面板", "ui.help.kb_help":"开关此帮助", "ui.help.kb_close":"关闭抽屉 / 面板", "ui.help.further_title":"进一步了解", },
+  zh: { "auth.tagline":"开源。单租户。", "auth.welcome":"欢迎回来", "auth.subtitle":"粘贴首次运行时服务器日志中的 sk-orca-* 密钥。仅保存在此浏览器 localStorage。", "auth.api_key":"API 密钥", "auth.continue":"继续", "nav.search":"搜索", "nav.overview":"概览", "nav.providers":"供应商", "nav.routing":"路由", "nav.analytics":"分析", "nav.api_keys":"API 密钥", "nav.help_docs":"帮助与文档", "nav.sign_out":"退出登录", "status.connected":"已连接", "status.disconnected":"已断开", "auth.checking":"正在检查…", "auth.welcome_aboard":"欢迎使用。", "auth.key_invalid":"该密钥无效，请检查前缀 sk-orca-…", "tab.overview.title":"概览", "tab.overview.sub":"一览你的单租户 LLM 路由器。", "tab.providers.title":"供应商密钥", "tab.providers.sub":"BYOK — 静态加密存储，用于调用上游 LLM。", "tab.routing.title":"路由", "tab.routing.sub":"model='auto' 如何为每个请求选择合适模型。", "tab.analytics.title":"分析", "tab.analytics.sub":"仅本地的花费、延迟和请求历史。", "tab.keys.title":"API 密钥", "tab.keys.sub":"用于在此 Lite 工作区中验证客户端的令牌。", "nav.quality":"质量", "tab.quality.title":"质量分数", "tab.quality.sub":"真实 benchmark 分数驱动 quality 路由策略,数据来自 Artificial Analysis。", "providers.base_url":"接口地址", "providers.optional":"可选", "providers.endpoint":"端点", "providers.endpoint_default":"默认", "providers.rescan":"重新扫描", "common.request_failed":"请求失败", "common.copy_ok":"已复制到剪贴板", "common.copy_blocked":"复制失败 — 浏览器已阻止", "common.remove":"删除", "common.enabled":"已启用", "common.disabled":"已禁用", "common.active":"生效中", "common.revoked":"已撤销", "common.revoke":"撤销", "common.never":"从未", "common.reset":"重置", "common.set":"设置", "common.not_configured":"未配置", "common.no_matches":"无匹配", "time.seconds_ago":"{sec} 秒前", "time.minutes_ago":"{min} 分钟前", "time.hours_ago":"{hrs} 小时前", "providers.quick_add":"快捷添加：", "providers.env_title":"通过 .env / 环境变量设置；修改 env 文件并重启后生效。", "providers.endpoint_default_title":"厂商默认端点 — 模型来自内置目录。", "providers.rescan_title":"重新从此端点拉取模型", "providers.env_managed_title":"从 .env 中移除 OPENAI_API_KEY（或对应变量）并重启服务器。", "providers.remove_confirm":"删除 {prov} 的密钥？路由到 {prov} 的请求将开始失败。", "providers.removed":"已删除 {prov}", "providers.chip_env_title":"{label} 通过 .env 设置。点击可用自定义密钥覆盖（将写入优先的数据库记录）。", "providers.env_override":"(env，可覆盖)", "providers.name_required":"必须填写供应商名称", "providers.key_empty":"API 密钥不能为空", "providers.saved":"已保存 {provider} 的密钥", "providers.found_model":"在 {prov} 上发现 {count} 个模型", "providers.found_models":"在 {prov} 上发现 {count} 个模型", "providers.load_err":"无法加载供应商：{msg}", "routing.load_err":"无法加载路由：{msg}", "routing.strategy_saved":"路由策略：{val}", "analytics.load_err":"无法加载分析：{msg}", "analytics.no_spend":"此时间窗口暂无花费数据。", "analytics.no_spend_hint":"通过 <code>/v1/chat/completions</code> 发送请求后，可在此查看花费。", "analytics.no_data_window":"此时间窗口暂无数据。", "analytics.spend_summary":"最近 <strong>{days} 天</strong> · 共 <strong>{n}</strong> 次请求，花费 <strong>{cost}</strong>", "analytics.chart_tooltip":"{n} 次请求，{cost}", "analytics.req":"次", "analytics.trace_tip":"点击复制 Trace ID", "analytics.no_requests":"暂无请求。", "analytics.no_requests_hint":"发送首次 <code>chat.completions</code> 调用后，它会显示在这里。", "keys.load_err":"无法加载密钥：{msg}", "keys.empty":"暂无密钥。请在上方创建。", "keys.revoke_confirm":"撤销“{name}”？使用它的客户端将立即开始收到 401。", "keys.revoked":"已撤销 {name}", "keys.name_required":"请先为密钥命名", "keys.created":"已创建 {name}", "hosted.no_history":"暂无足够的可比请求历史 — 产生流量后，此卡片将显示通过 hosted-auto 路由可节省的金额。", "hosted.savings_detected":"每个请求经 hosted-auto 路由到目录中最便宜的模型，预计还可节省最多 <strong>{amount}</strong>（占可比流量花费的 {pct}%）。", "hosted.already_optimal":"已达最优 — 每个可比请求的当前路由均已匹配最便宜的 hosted-auto 选择。", "hosted.env_active":"通过环境变量生效（<code>ORCAROUTER_API_KEY</code>）。目录中所有模型均可达；如需停用，请取消该环境变量并重启。", "hosted.db_active":"已通过面板启用。目录中所有模型均可达。", "hosted.activate_ok":"已启用 Hosted 回退 — 所有模型现在均可达", "hosted.disable_confirm":"停用 Hosted 回退？没有本地密钥的模型请求将开始失败。", "hosted.disabled":"已停用 Hosted 回退", "hosted.paste_hint":"请粘贴来自 orcarouter.ai/console/token 的 sk-orca-* 密钥", "hosted.clipboard_empty":"剪贴板为空 — 请先复制 sk-orca-* 密钥", "hosted.paste_blocked":"浏览器阻止了剪贴板访问 — 请用 Ctrl+V 粘贴", "quality.load_err":"无法加载质量分数：{msg}", "quality.source_live":"实时", "quality.source_stale_aa":"过期（AA 不可达）", "quality.source_stale_db":"过期（DB 快照）", "quality.source_error":"错误", "quality.source_no_key":"无 API 密钥", "quality.source_unknown":"未知", "quality.status_fmt":"目录中 <strong>{total}</strong> 个 AA 模型已匹配 <strong>{matched}</strong> 个 · <strong>{overrides}</strong> 个手动覆盖", "quality.empty":"目录中暂无模型。", "quality.aa_title":"Artificial Analysis 智能指数", "quality.tps_title":"每秒输出 Token（AA 中位数，推理变体取最大）", "quality.ttft_title":"首 Token 时间（秒，AA 中位数，各变体取最小 — 非推理快速模式）", "quality.reset_title":"还原为 AA 分数", "quality.unscored":"未评分", "quality.deployable":"可部署", "quality.no_key":"无密钥", "quality.no_deployable":"没有可部署模型满足当前能力要求。请在“供应商”页配置供应商密钥。", "quality.score_fmt":"分数 {score}", "quality.falls_back_fmt":"→ 回退至：{list}", "quality.strategy_prefix":"策略：", "quality.scoring_prefix":"评分：", "quality.prompt_score":"为 {model} 设置手动质量分数（0-100）：", "quality.prompt_aa_hint":"AA 分数当前为：{score}", "quality.prompt_note":"可选备注（覆盖原因）：", "quality.score_range":"分数必须是 0 到 100 之间的数字", "quality.override_set":"已为 {model} 设置覆盖", "quality.reset_confirm":"将 {model} 重置为 AA 分数？", "quality.reset_done":"已重置 {model}", "quality.refreshed":"已从 Artificial Analysis 刷新分数", "quality.refresh_failed":"刷新失败：{msg}", "overview.across_reqs":"共 {n} 次请求", "overview.vs_gpt4o_off":"对比始终使用 GPT-4o（省 {pct}%）", "overview.vs_gpt4o_base":"对比始终使用 GPT-4o 基线", "overview.already_optimal":"已达最优", "overview.provider_1":"{n} 个供应商已配置", "overview.provider_n":"{n} 个供应商已配置", "palette.go_overview":"前往概览", "palette.go_providers":"前往供应商", "palette.go_routing":"前往路由", "palette.go_analytics":"前往分析", "palette.go_keys":"前往 API 密钥", "palette.copy_base":"复制 Base URL", "palette.copy_snippet":"复制快速入门代码", "palette.open_help":"打开帮助与文档", "palette.open_docs":"打开 docs.orcarouter.ai", "palette.open_site":"打开 orcarouter.ai", "palette.get_hosted_key":"获取 Hosted API 密钥（orcarouter.ai/console/token）", "palette.logout":"退出登录（清除 API 密钥）", "palette.meta_tab":"标签页", "palette.meta_action":"操作", "palette.meta_help":"帮助", "palette.meta_link":"链接", "auth.signed_out":"已退出登录 — 本设备上的密钥已清除", "unreachable.per_1m":"每 1M", "unreachable.provider_prefix":"供应商：", "ui.auth.find_key":"在哪里找到我的密钥？", "ui.auth.run_li":"运行 <code>docker compose up</code>（或 <code>uvicorn app.main:app</code>）。", "ui.auth.first_run_li":"首次启动时，服务器会打印：<br><code class=\"code-block\">✓ orcarouter-lite ready. API key: sk-orca-...</code>", "ui.auth.copy_paste":"复制该字符串并粘贴到上方输入框。", "ui.auth.reset_p":"找不到了？删除 <code>orcarouter.db</code>（以及 <code>data/</code> 数据卷）后重启，即可重置工作区。", "ui.common.language":"语言", "ui.common.copy_base_tip":"复制你的 Base URL", "ui.common.logout_tip":"清除 API 密钥（本设备）", "ui.overview.spend_tip":"最近 7 天的所有上游成本之和", "ui.overview.spend_label":"花费（7 天）", "ui.overview.savings_tip":"上：同一流量的 GPT-4o 对比。下：hosted-auto 通过触达你没有密钥的更便宜模型可解锁的额外节省。", "ui.overview.routing_savings":"路由节省", "ui.overview.vs_hosted_auto":"对比 hosted-auto", "ui.overview.latency_tip":"最近请求的真实中位延迟（原始样本，非平均值）", "ui.overview.p50_label":"p50 延迟", "ui.overview.models_tip":"从已配置的供应商密钥与目录发现的模型", "ui.overview.models_label":"可用模型", "ui.overview.quick_start":"快速开始", "ui.overview.quick_sub":"已就绪 — 将任意 OpenAI SDK 指向你的 Base URL。", "ui.common.copy_snippet_tip":"复制示例代码", "ui.overview.auto_hint":"使用 <code>model=\"auto\"</code> 让路由器挑选最便宜且满足能力的模型。", "ui.overview.recent_title":"最近活动", "ui.overview.recent_sub":"最近经由此服务器路由的 5 次请求。", "ui.common.view_all":"查看全部", "ui.hosted.title":"Hosted 回退<span class=\"pill\" id=\"hosted-status-pill\">Not configured</span>", "ui.hosted.card_sub":"一个密钥，所有模型。任何你没有本地密钥的模型的标准回退方案。注册即送 <strong>$5</strong> 试用额度 — 无需信用卡。", "ui.hosted.get_key_on_site":"在 orcarouter.ai 获取你的密钥", "ui.hosted.step1_hint":"在新标签页打开 Token 控制台 — 在那里复制你的 <code>sk-orca-*</code> 密钥。", "ui.hosted.register":"还没有账号？注册即享 $5 免费额度", "ui.hosted.step2_hint":"回到这里，粘贴密钥并激活。", "ui.hosted.api_key_label":"Hosted API 密钥", "ui.hosted.paste_tip":"从剪贴板粘贴", "ui.common.paste":"粘贴", "ui.hosted.activate":"激活回退", "ui.hosted.unreachable_intro":"今天无法触达的模型 — hosted 可解锁全部：", "ui.hosted.disable_tip":"停用 Hosted 回退", "ui.hosted.remove_key":"移除密钥", "ui.hosted.onboarding_title":"新来的？两分钟完成全部设置", "ui.hosted.onb1":"<span class=\"check\"></span>至少添加一个<a href=\"#\" data-go-tab=\"providers\">供应商密钥</a>", "ui.hosted.onb2":"<span class=\"check\"></span>选择<a href=\"#\" data-go-tab=\"routing\">路由策略</a>", "ui.hosted.onb3":"<span class=\"check\"></span>发送你的第一个请求（它会出现在<a href=\"#\" data-go-tab=\"analytics\">分析</a>中）", "ui.hosted.title_prov":"Hosted 回退<span class=\"pill\" id=\"providers-hosted-pill\">Not configured</span>", "ui.hosted.prov_sub":"无需逐个供应商注册即可覆盖长尾。免费 <strong>$5</strong> 额度，之后按成本计费。", "ui.hosted.get_key":"获取密钥", "ui.providers.title":"供应商密钥 <span class=\"pill\">BYOK</span>", "ui.providers.sub":"使用 AES-256-GCM 静态加密存储。同一供应商的 env 变量优先于数据库记录。", "ui.providers.name":"供应商", "ui.providers.api_key":"API 密钥", "ui.common.save_key":"保存密钥", "ui.common.provider":"供应商", "ui.common.prefix":"前缀", "ui.common.status":"状态", "ui.providers.empty_title":"尚无供应商密钥", "ui.providers.empty_sub":"至少添加一个即可开始路由真实流量。在上方选择供应商，或点击快捷添加。", "ui.routing.title":"路由策略", "ui.routing.sub":"当发送 <code>model=\"auto\"</code> 时，路由器如何在候选模型之间做选择。", "ui.routing.balanced":"均衡", "ui.routing.balanced_desc":"50/50 加权混合 AA 质量与成本。适合大多数团队的稳妥默认。", "ui.routing.recommended":"推荐", "ui.routing.cheapest":"最便宜", "ui.routing.cheapest_desc":"满足请求能力要求的前提下，每 Token 成本最低。", "ui.routing.fastest":"最快", "ui.routing.fastest_desc":"最高吞吐 + 最低首 Token 延迟，来自 Artificial Analysis 基准。适合聊天类 UI。", "ui.routing.quality":"质量", "ui.routing.quality_desc":"偏好前沿模型。最适合困难推理任务。", "ui.routing.pick_hint":"点击卡片即可切换策略，自动保存。", "ui.routing.how_title":"<code>model=\"auto\"</code> 如何工作", "ui.routing.how_sub":"三个过滤器，按顺序应用。", "ui.routing.cap_filter":"能力过滤。", "ui.routing.cap_desc":"路由器检查你的请求 — 是否包含图片？工具定义？<code>response_format=json</code>？— 并剔除无法处理的模型。", "ui.routing.prov_filter":"供应商过滤。", "ui.routing.prov_desc":"只有已配置供应商（或 hosted 上游覆盖）的模型才能存活。", "ui.routing.strat_rank":"策略排序。", "ui.routing.strat_rank_desc":"剩余候选按你上方选择的策略评分，胜出者被调用。", "ui.routing.resolved_hint":"所选模型会通过 <code>x-orca-resolved-model</code> 响应头返回给你的客户端；生效的策略以 <code>x-orca-routing-strategy</code> 回显。", "ui.routing.map_summary":"各策略如何映射到 LiteLLM Router", "ui.routing.map_strategy":"策略", "ui.routing.map_litellm":"litellm <code>routing_strategy</code>", "ui.routing.map_picks":"<code>model=\"auto\"</code> 的选择", "ui.routing.we_rank":"<code>None</code>（我们自行排序）", "ui.routing.map_balanced_desc":"50/50 归一化 AA 质量与反相成本；严格双轴覆盖", "ui.routing.map_cheapest_desc":"满足能力的最便宜选择（0.3 输入 + 0.7 输出混合成本）", "ui.routing.map_fastest_desc":"50/50 归一化 AA TPS 与反相 TTFT；严格双轴覆盖", "ui.routing.map_quality_desc":"最高 AA 智能指数（或手动覆盖）；未评分模型排在已评分之后", "ui.routing.map_foot":"策略控制两件事：<code>model=\"auto\"</code> 解析到哪个模型，以及 LiteLLM Router 如何在服务同一模型的部署之间选择（例如本地 OpenAI 密钥 + hosted 上游）。", "ui.analytics.spend_title":"按模型花费", "ui.analytics.latency_title":"按供应商延迟", "ui.analytics.latency_sub":"p50 与 p99 — 数据来自本地请求日志。", "ui.analytics.requests":"请求数", "ui.analytics.recent_title":"最近请求", "ui.analytics.recent_sub":"最新在前。点击行可复制其 Trace ID。", "ui.analytics.when":"时间", "ui.common.model":"模型", "ui.analytics.tokens":"Token（入 / 出）", "ui.analytics.latency":"延迟", "ui.analytics.no_traffic":"暂无流量", "ui.analytics.no_traffic_sub":"开始发送请求后，它们会实时显示在这里。", "ui.keys.intro":"每个密钥都用于在此 Lite 工作区验证客户端。明文仅在创建时显示<strong>一次</strong>。", "ui.keys.name":"名称", "ui.keys.create":"创建密钥", "ui.keys.save_warn":"请保存此密钥 — 之后不再显示。", "ui.common.copy_tip":"复制", "ui.keys.last_used":"最后使用", "ui.quality.setup_title":"设置质量评分", "ui.quality.setup_p1":"当前 <code>quality</code> 策略会选择最贵的模型 — 在新旗舰（Claude Opus 4.7、GPT-5.x）定价低于旧款后，这个代理逻辑已经失效。设置 Artificial Analysis API 密钥，改为按真实基准分数路由。", "ui.quality.setup_li1":"在 <a href=\"https://artificialanalysis.ai\" target=\"_blank\" rel=\"noopener\">artificialanalysis.ai</a> 免费注册并生成 API 密钥（免费档：每天 1,000 次请求，对 1 小时缓存足够）。", "ui.quality.setup_li2":"把它加到 <code>.env</code> 中的 <code>ARTIFICIAL_ANALYSIS_API_KEY=...</code> 并重启。", "ui.quality.setup_li3":"刷新此页面 — 分数会自动出现。", "ui.quality.setup_foot":"没有密钥时，<code>quality</code> 会回退到旧的基于成本的行为。<code>cheapest</code> / <code>balanced</code> / <code>fastest</code> 不受影响。你仍可在下方表格中对单个模型设置<strong>手动覆盖</strong> — 这些不需要 AA 密钥，存在时优先。", "ui.quality.refresh":"从 AA 刷新", "ui.quality.preview_title":"此刻 <code>model=\"auto\"</code> 将解析为：", "ui.quality.models_title":"模型", "ui.quality.models_sub":"编辑一行的<strong>手动</strong>列可覆盖路由决策所用的 AA 分数。手动值优先于 AA。当你的内部评估与其不一致、或 AA 尚未给某模型评分时使用。", "ui.quality.manual":"手动", "ui.quality.effective":"生效", "ui.quality.tps_th_title":"每秒输出 Token（Artificial Analysis 中位数，各推理变体取最大）。— AA 尚未收录该模型时无数据。", "ui.quality.ttft_th_title":"首 Token 时间（秒，Artificial Analysis 中位数，各变体取最小 — 该模型的非推理快速模式）。— AA 尚未收录该模型时无数据。", "ui.quality.blended":"$/M 混合", "ui.quality.powered":"由 <a href=\"https://artificialanalysis.ai\" target=\"_blank\" rel=\"noopener\">Artificial Analysis</a> 提供支持 — 智能指数聚合了 MMLU-Pro、GPQA、MATH、HumanEval 等基准。按要求注明出处。", "ui.help.what_title":"什么是 OrcaRouter Lite？", "ui.help.what_body":"自托管的 OpenAI 兼容 LLM 路由器。自带供应商密钥（BYOK），将任意 OpenAI SDK 指向本地 Base URL，路由器会为每个请求挑选最便宜且满足能力的模型 — 可选回退到托管的 <a href=\"https://api.orcarouter.ai\" target=\"_blank\" rel=\"noreferrer\">api.orcarouter.ai</a>。", "ui.help.quick_title":"60 秒快速开始", "ui.help.qs1":"在<a href=\"#\" data-go-tab=\"providers\">供应商</a>页添加供应商密钥（或在 env 中设置 <code>OPENAI_API_KEY</code>）。", "ui.help.qs2":"可选：选择<a href=\"#\" data-go-tab=\"routing\">路由策略</a>。", "ui.help.qs3":"将此 URL 用作 OpenAI <code>base_url</code>：<code id=\"help-base-url\">http://localhost:8000/v1</code>", "ui.help.qs4":"使用登录时的 <code>sk-orca-*</code> 密钥作为 API 密钥。", "ui.help.kb_title":"键盘快捷键", "ui.help.kb_tabs":"切换标签页", "ui.help.kb_palette":"命令面板", "ui.help.kb_help":"开关此帮助", "ui.help.kb_close":"关闭抽屉 / 面板", "ui.help.further_title":"进一步了解", "nav.network":"网络","nav.network_analytics":"网络分析","tab.network.title":"网络","tab.network.sub":"聚合多个免费与免费层级的网页搜索与抓取服务。","tab.network_analytics.title":"网络分析","tab.network_analytics.sub":"聚合搜索与抓取接口的用量、延迟与配额。","palette.go_network":"前往网络","palette.go_network_analytics":"前往网络分析","network.tab_search":"搜索","network.tab_fetch":"抓取","network.search_title":"网页搜索","network.search_sub":"统一的请求格式，多家上游供应商。实际应答者会在结果中标注。","network.fetch_title":"抓取网页","network.fetch_sub":"从最多 10 个 URL 中提取可读内容。","network.query":"查询词","network.query_ph":"你想搜索什么？","network.urls":"URL（每行一个）","network.provider":"供应商","network.strategy":"策略","network.max_results":"结果上限","network.run":"执行","network.running":"执行中…","network.provider_auto":"自动（按策略选择）","network.strategy_random":"随机加权","network.strategy_quota":"配额均衡","network.strategy_latency":"速度优先","network.strategy_explicit":"指定供应商","network.params_show":"{prov} 参数","network.served_by":"实际供应商","network.strategy_label":"策略","network.latency":"延迟","network.results_count":"{n} 条结果","network.failover":"级联路径","network.empty_results":"未返回任何结果。","network.providers_title":"搜索供应商","network.providers_sub":"所有已注册的供应商都会在此列出。停用某一家即可使其不再参与自动选择。","network.providers_empty_title":"尚无已注册的供应商","network.providers_empty_sub":"重启服务器即可 — 供应商会从内置注册表自动播种。","network.col_provider":"供应商","network.col_tier":"层级","network.col_status":"状态","network.col_weight":"权重","network.col_quota":"配额（已用 / 每月）","network.col_latency":"p50 延迟","network.tier_keyless":"免密钥","network.tier_quota":"免费层级","network.cap_search":"搜索","network.cap_fetch":"抓取","network.key_env":"env 密钥","network.key_env_title":"通过环境变量设置 — 修改 .env 并重启后生效。","network.no_key":"无密钥","network.enabled":"已启用","network.disabled":"已停用","network.act_key":"密钥","network.act_enable":"启用","network.act_disable":"停用","network.act_refresh":"刷新","network.act_quota":"配额","network.act_quota_title":"从供应商拉取实时余额","network.quota_refreshed":"已同步 {prov} 余额","network.per_minute":"分钟","network.per_hour":"小时","network.per_day":"天","network.key_prompt":"{prov} 的 API 密钥（留空则清除）：","network.key_saved":"已保存 {prov} 的密钥","network.key_cleared":"已清除 {prov} 的密钥","network.weight_prompt":"{prov} 的权重（0 = 不参与自动选择）：","network.weight_saved":"已设置 {prov} 权重 = {w}","network.cooldown":"冷却中","network.load_err":"无法加载供应商：{msg}","network.err_query_required":"查询词不能为空","network.err_urls_required":"请至少填写一个 URL","na.requests":"请求数","na.success":"成功率","na.p50":"p50 延迟","na.providers_active":"活跃供应商","na.providers_active_sub":"共 {n} 个已配置","na.by_provider":"按供应商的请求量","na.summary_sub":"最近 {days} 天 · {n} 次网络请求","na.usage_title":"按供应商延迟","na.usage_sub":"所选窗口内的 p50 与 p99。","na.quota_title":"免费层级配额","na.quota_sub":"本地记录的各供应商每月额度使用情况。不限量供应商显示 —。","na.recent_title":"最近网络请求","na.recent_sub":"最新在前。点击行可复制其供应商名。","na.col_when":"时间","na.col_kind":"类型","na.col_results":"结果数","na.col_latency":"延迟","na.col_status":"状态","na.col_remaining":"剩余","na.col_resets":"重置时间","na.kind_search":"搜索","na.kind_fetch":"抓取","na.no_traffic":"暂无网络请求","na.no_traffic_sub":"在网络页执行一次搜索或抓取后，这里会显示记录。","na.unmetered":"不限量","na.load_err":"无法加载网络分析：{msg}", },
   hi: { "auth.tagline":"ओपन सोर्स। सिंगल टेनेंट।","auth.welcome":"वापसी पर स्वागत है","auth.subtitle":"पहले रन पर सर्वर लॉग में छपी sk-orca-* कुंजी पेस्ट करें। यह केवल इस ब्राउज़र के localStorage में रहेगी।","auth.api_key":"API कुंजी","auth.continue":"जारी रखें","nav.search":"खोज","nav.overview":"अवलोकन","nav.providers":"प्रदाता","nav.routing":"रूटिंग","nav.analytics":"एनालिटिक्स","nav.api_keys":"API कुंजियाँ","nav.help_docs":"सहायता और दस्तावेज़","nav.sign_out":"साइन आउट","status.connected":"कनेक्टेड","status.disconnected":"डिस्कनेक्टेड","auth.checking":"जाँच हो रही है…","auth.welcome_aboard":"स्वागत है।","auth.key_invalid":"यह कुंजी काम नहीं कर रही। sk-orca- प्रीफिक्स जाँचें…","tab.overview.title":"ओवरव्यू","tab.overview.sub":"आपका सिंगल-टेनेंट LLM राउटर एक नज़र में।","tab.providers.title":"प्रोवाइडर कुंजियाँ","tab.providers.sub":"BYOK — स्टोरेज में एन्क्रिप्टेड, अपस्ट्रीम LLM कॉल के लिए उपयोग।","tab.routing.title":"रूटिंग","tab.routing.sub":"model='auto' हर अनुरोध के लिए सही मॉडल कैसे चुनता है।","tab.analytics.title":"एनालिटिक्स","tab.analytics.sub":"केवल स्थानीय खर्च, लेटेंसी और अनुरोध इतिहास।","tab.keys.title":"API कुंजियाँ","tab.keys.sub":"इस Lite वर्कस्पेस पर क्लाइंट प्रमाणित करने वाले टोकन।" },
   es: { "auth.tagline":"Código abierto. Inquilino único.","auth.welcome":"Bienvenido de nuevo","auth.subtitle":"Pega la clave sk-orca-* mostrada en los logs del servidor en el primer inicio. Solo se guarda en este navegador mediante localStorage.","auth.api_key":"Clave API","auth.continue":"Continuar","nav.search":"Buscar","nav.overview":"Resumen","nav.providers":"Proveedores","nav.routing":"Enrutamiento","nav.analytics":"Analíticas","nav.api_keys":"Claves API","nav.help_docs":"Ayuda y documentación","nav.sign_out":"Cerrar sesión","status.connected":"Conectado","status.disconnected":"Desconectado","auth.checking":"Verificando…","auth.welcome_aboard":"Bienvenido.","auth.key_invalid":"Esa clave no funcionó. Verifica el prefijo sk-orca-…","tab.overview.title":"Resumen","tab.overview.sub":"Tu enrutador LLM de inquilino único de un vistazo.","tab.providers.title":"Claves de proveedor","tab.providers.sub":"BYOK — cifradas en reposo, usadas para llamar a LLMs upstream.","tab.routing.title":"Enrutamiento","tab.routing.sub":"Cómo model='auto' elige el modelo adecuado para cada solicitud.","tab.analytics.title":"Analíticas","tab.analytics.sub":"Gasto, latencia e historial de solicitudes solo local.","tab.keys.title":"Claves API","tab.keys.sub":"Tokens que autentican clientes en este espacio Lite." },
   pt: { "auth.tagline":"Código aberto. Locatário único.","auth.welcome":"Bem-vindo de volta","auth.subtitle":"Cole a chave sk-orca-* exibida nos logs do servidor na primeira execução. Armazenada apenas neste navegador via localStorage.","auth.api_key":"Chave API","auth.continue":"Continuar","nav.search":"Pesquisar","nav.overview":"Visão geral","nav.providers":"Provedores","nav.routing":"Roteação","nav.analytics":"Análises","nav.api_keys":"Chaves API","nav.help_docs":"Ajuda e docs","nav.sign_out":"Sair","status.connected":"Conectado","status.disconnected":"Desconectado","auth.checking":"Verificando…","auth.welcome_aboard":"Boas-vindas.","auth.key_invalid":"Essa chave não funcionou. Verifique o prefixo sk-orca-…","tab.overview.title":"Visão geral","tab.overview.sub":"Seu roteador LLM single-tenant em um relance.","tab.providers.title":"Chaves de provedor","tab.providers.sub":"BYOK — criptografadas em repouso, usadas para chamar LLMs upstream.","tab.routing.title":"Roteamento","tab.routing.sub":"Como model='auto' escolhe o modelo certo para cada solicitação.","tab.analytics.title":"Análises","tab.analytics.sub":"Gasto, latência e histórico de solicitações apenas locais.","tab.keys.title":"Chaves API","tab.keys.sub":"Tokens que autenticam clientes neste workspace Lite." },
@@ -107,6 +108,16 @@ const TAB_META = {
   analytics: { title: "tab.analytics.title", sub: "tab.analytics.sub" },
   keys:      { title: "tab.keys.title",      sub: "tab.keys.sub" },
   quality:   { title: "tab.quality.title",   sub: "tab.quality.sub" },
+  network:   { title: "tab.network.title",   sub: "tab.network.sub" },
+  "network-analytics": { title: "tab.network_analytics.title", sub: "tab.network_analytics.sub" },
+};
+
+const NETWORK_STRATEGIES = ["random", "quota", "latency", "explicit"];
+const NETWORK_STRATEGY_I18N = {
+  random:   "network.strategy_random",
+  quota:    "network.strategy_quota",
+  latency:  "network.strategy_latency",
+  explicit: "network.strategy_explicit",
 };
 
 const state = {
@@ -127,6 +138,16 @@ const state = {
   windowDays: 7,
   lang: "python",
   locale: "en",
+  // Aggregated web search / fetch (the "network" category)
+  network: {
+    pane: "search",          // which sub-pane is visible: search | fetch
+    providers: [],           // listing from /v1/network/providers
+    defaults: { strategy: "random", strategies: NETWORK_STRATEGIES, max_results: 5 },
+    result: { search: null, fetch: null },
+    running: false,
+    params: { search: {}, fetch: {} },   // provider id -> rendered param values
+  },
+  networkAnalytics: { summary: null, usage: null, quota: null, recent: null, days: 7 },
 };
 const t = (k, vars) => {
   const s = I18N[state.locale]?.[k] || I18N.en[k] || k;
@@ -181,6 +202,8 @@ function rerenderAll() {
   renderKeys();
   renderQuality();
   renderQualityPreview();
+  renderNetwork();
+  renderNetworkAnalytics();
 }
 
 /* ─────────────── tiny utils ─────────────── */
@@ -317,6 +340,7 @@ function showShell() {
     loadModels(),
     loadHosted(),
     loadUnreachable(),
+    loadNetwork(),
   ]).then(() => {
     renderProviders();
     renderRouting();
@@ -327,6 +351,8 @@ function showShell() {
     renderHostedCard();
     renderUnreachable();
     syncOnboarding();
+    renderNetwork();
+    renderNetworkAnalytics();
   });
 }
 
@@ -370,6 +396,10 @@ function setTab(tab) {
       renderQuality();
       renderQualityPreview();
     });
+  }
+  if (tab === "network") loadNetwork().then(renderNetwork);
+  if (tab === "network-analytics") {
+    loadNetworkAnalytics().then(renderNetworkAnalytics);
   }
 }
 
@@ -1251,6 +1281,475 @@ function bindQualityRefresh() {
 }
 
 /* ==========================================================================
+   NETWORK (aggregated web search + fetch)
+   ========================================================================== */
+async function loadNetwork() {
+  try {
+    const data = await api("/v1/network/providers");
+    state.network.providers = data.providers || [];
+    if (data.defaults) state.network.defaults = data.defaults;
+  } catch (e) {
+    toast(t("network.load_err", { msg: e.message }), "err");
+  }
+  return state.network.providers;
+}
+
+function networkProvidersFor(kind) {
+  return state.network.providers.filter((p) => (p.capabilities || []).includes(kind));
+}
+
+function networkProviderLabel(p) {
+  const tier = t(`network.tier_${p.tier}`) || p.tier;
+  return `${p.label} · ${tier}`;
+}
+
+function renderNetwork() {
+  renderNetworkPaneTitle();
+  renderNetworkProviderOptions();
+  renderNetworkParams();
+  renderNetworkProvidersTable();
+  renderNetworkResult("search");
+  renderNetworkResult("fetch");
+}
+
+function renderNetworkPaneTitle() {
+  const isSearch = state.network.pane === "search";
+  const title = $("#network-pane-title");
+  const sub = $("#network-pane-sub");
+  if (title) title.textContent = t(isSearch ? "network.search_title" : "network.fetch_title");
+  if (sub) sub.textContent = t(isSearch ? "network.search_sub" : "network.fetch_sub");
+  // The pane title/sub are plain text nodes, not i18n attributes — they
+  // change with the sub-tab, so applyI18n() can't own them.
+}
+
+function setNetworkPane(pane) {
+  if (state.network.pane === pane) return;
+  state.network.pane = pane;
+  $$("#network-seg .seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.pane === pane));
+  $("#network-search-pane").hidden = pane !== "search";
+  $("#network-fetch-pane").hidden = pane !== "fetch";
+  renderNetworkPaneTitle();
+  renderNetworkProviderOptions();
+  renderNetworkParams();
+  renderNetworkResult(pane);
+}
+
+function renderNetworkProviderOptions() {
+  for (const kind of ["search", "fetch"]) {
+    const sel = $(kind === "search" ? "#network-search-provider" : "#network-fetch-provider");
+    if (!sel) continue;
+    const list = networkProvidersFor(kind);
+    const current = sel.value;
+    sel.innerHTML =
+      `<option value="">${escapeHtml(t("network.provider_auto"))}</option>` +
+      list.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(networkProviderLabel(p))}</option>`).join("");
+    if (current && list.some((p) => p.id === current)) sel.value = current;
+    // A pinned provider IS the explicit strategy — the backend ignores the
+    // strategy field when `provider` is set, so reflect that in the UI rather
+    // than showing a selector that would silently have no effect.
+    sel.onchange = () => {
+      const strategySel = $(kind === "search" ? "#network-search-strategy" : "#network-fetch-strategy");
+      if (!strategySel) return;
+      const pinned = !!sel.value;
+      strategySel.disabled = pinned;
+      if (pinned) strategySel.value = "explicit";
+      renderNetworkParams();
+    };
+  }
+}
+
+function renderNetworkParams() {
+  for (const kind of ["search", "fetch"]) {
+    const wrap = $(kind === "search" ? "#network-search-params" : "#network-fetch-params");
+    if (!wrap) continue;
+    const sel = $(kind === "search" ? "#network-search-provider" : "#network-fetch-provider");
+    const id = sel ? sel.value : "";
+    const provider = state.network.providers.find((p) => p.id === id);
+    const meta = provider ? provider[kind] : null;
+    const params = (meta && meta.params) || [];
+
+    if (!provider || !params.length) {
+      wrap.innerHTML = "";
+      wrap.hidden = true;
+      continue;
+    }
+    wrap.hidden = false;
+    wrap.innerHTML =
+      `<details class="hint" style="margin:0"><summary class="small muted">${escapeHtml(
+        t("network.params_show", { prov: provider.label })
+      )}</summary>` +
+      `<div class="inline-form" style="margin-top:10px">` +
+      params
+        .map((p) => {
+          const value = state.network.params[kind]?.[provider.id]?.[p.name] ?? "";
+          const control = _networkParamControl(kind, provider.id, p, value);
+          return `<label class="field flex-grow-0"><span class="field-label" title="${escapeHtml(p.description)}">${escapeHtml(p.name)}</span>${control}</label>`;
+        })
+        .join("") +
+      `</div></details>`;
+  }
+}
+
+function _networkParamControl(kind, providerId, p, value) {
+  const attrs = `data-np-kind="${kind}" data-np-prov="${escapeHtml(providerId)}" data-np-name="${escapeHtml(p.name)}"`;
+  if (p.type === "enum") {
+    const opts = ["<option value=\"\"></option>"]
+      .concat((p.enum || []).map((v) => `<option value="${escapeHtml(v)}" ${v === value ? "selected" : ""}>${escapeHtml(v)}</option>`));
+    return `<select ${attrs}>${opts.join("")}</select>`;
+  }
+  if (p.type === "bool") {
+    const on = value === true || value === "true";
+    return `<select ${attrs}><option value=""></option><option value="true" ${on ? "selected" : ""}>true</option><option value="false" ${!on && value !== "" ? "selected" : ""}>false</option></select>`;
+  }
+  const type = p.type === "int" ? "number" : "text";
+  const min = p.min != null ? ` min="${p.min}"` : "";
+  const max = p.max != null ? ` max="${p.max}"` : "";
+  return `<input ${attrs} type="${type}"${min}${max} value="${escapeHtml(String(value ?? ""))}" autocomplete="off" spellcheck="false">`;
+}
+
+function bindNetworkParams() {
+  document.addEventListener("change", (e) => {
+    const el = e.target.closest("[data-np-name]");
+    if (!el) return;
+    const { npKind, npProv, npName } = el.dataset;
+    state.network.params[npKind] = state.network.params[npKind] || {};
+    state.network.params[npKind][npProv] = state.network.params[npKind][npProv] || {};
+    state.network.params[npKind][npProv][npName] = el.value;
+  });
+}
+
+function _networkCollectedParams(kind, providerId) {
+  const all = (state.network.params[kind] || {})[providerId] || {};
+  const out = {};
+  for (const [k, v] of Object.entries(all)) {
+    if (v === "" || v == null) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+function renderNetworkProvidersTable() {
+  const tbody = $("#network-providers-table tbody");
+  const empty = $("#network-providers-empty");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  const rows = state.network.providers || [];
+  if (!rows.length) {
+    if (empty) empty.classList.add("shown");
+    return;
+  }
+  if (empty) empty.classList.remove("shown");
+
+  rows.forEach((p) => {
+    const tr = document.createElement("tr");
+    tr.className = "row-in";
+    const caps = (p.capabilities || []).map((c) => `<span class="cap-pill">${escapeHtml(t(`network.cap_${c}`))}</span>`).join("");
+    const limits = networkLimitsText(p);
+    const pills = [];
+    pills.push(p.is_enabled ? `<span class="pill ok">${escapeHtml(t("network.enabled"))}</span>` : `<span class="pill muted">${escapeHtml(t("network.disabled"))}</span>`);
+    if (p.cooldown_until) pills.push(`<span class="pill err" title="${escapeHtml(p.last_error || "")}">${escapeHtml(t("network.cooldown"))}</span>`);
+    const key = p.key_source === "env"
+      ? `<span class="pill muted" title="${escapeHtml(t("network.key_env_title"))}">${escapeHtml(t("network.key_env"))}</span>`
+      : p.has_key
+        ? `<code>${escapeHtml(p.key_prefix || "")}</code>`
+        : `<span class="muted small">${escapeHtml(t("network.no_key"))}</span>`;
+    const quota = p.quota && p.quota.monthly
+      ? `${fmtNum(p.quota.used)} / ${fmtNum(p.quota.monthly)}`
+      : `<span class="muted">—</span>`;
+    const lat = p.avg_latency_ms != null ? `${fmtNum(p.avg_latency_ms)} ms` : '<span class="muted">—</span>';
+    const quotaBtn = p.supports_usage
+      ? `<button class="btn btn-ghost btn-sm np-quota" data-id="${escapeHtml(p.id)}" title="${escapeHtml(t("network.act_quota_title"))}">${escapeHtml(t("network.act_quota"))}</button>`
+      : "";
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(p.label)}</strong> <span class="muted small">${escapeHtml(p.id)}</span><div class="unreachable-caps">${caps}</div>${limits ? `<div class="small muted">${limits}</div>` : ""}</td>
+      <td><span class="chip ${p.tier === "quota" ? "configured" : ""}">${escapeHtml(t(`network.tier_${p.tier}`))}</span></td>
+      <td><div class="unreachable-caps">${pills.join("")}</div><div class="small muted">${key}</div></td>
+      <td class="num">${fmtNum(p.weight)}</td>
+      <td class="num">${quota}</td>
+      <td class="num">${lat}</td>
+      <td class="th-actions">
+        <button class="btn btn-ghost btn-sm np-key" data-id="${escapeHtml(p.id)}">${escapeHtml(t("network.act_key"))}</button>
+        <button class="btn btn-ghost btn-sm np-weight" data-id="${escapeHtml(p.id)}">${escapeHtml(t("network.col_weight"))}</button>
+        <button class="btn btn-ghost btn-sm np-en" data-id="${escapeHtml(p.id)}" data-en="${p.is_enabled ? "1" : "0"}">${escapeHtml(t(p.is_enabled ? "network.act_disable" : "network.act_enable"))}</button>
+        ${quotaBtn}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  $$(".np-key").forEach((b) => b.addEventListener("click", () => setNetworkKey(b.dataset.id)));
+  $$(".np-weight").forEach((b) => b.addEventListener("click", () => setNetworkWeight(b.dataset.id)));
+  $$(".np-en").forEach((b) => b.addEventListener("click", () => updateNetworkProvider(b.dataset.id, { is_enabled: b.dataset.en !== "1" })));
+  $$(".np-quota").forEach((b) => b.addEventListener("click", () => refreshNetworkQuota(b.dataset.id)));
+}
+
+// "搜索 30/分钟 · 500/小时 · 抓取 150/分钟 · 1000/天" — the vendor's published
+// free-tier throttle. Informational: when it bites, the provider 429s and the
+// engine's cooldown handles it.
+function networkLimitsText(p) {
+  const parts = (p.limits || []).map((l) =>
+    `${escapeHtml(t(`na.kind_${l.operation}`))} ${fmtNum(l.limit)}/${escapeHtml(t(`network.per_${l.per}`))}`
+  );
+  return parts.join(" · ");
+}
+
+async function refreshNetworkQuota(id) {
+  const provider = state.network.providers.find((p) => p.id === id);
+  try {
+    const res = await api(`/v1/network/providers/${encodeURIComponent(id)}/refresh-quota`, { method: "POST" });
+    toast(t("network.quota_refreshed", { prov: provider ? provider.label : id }), "ok");
+    await loadNetwork();
+    renderNetworkProvidersTable();
+    renderNetworkAnalytics();
+    return res;
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+
+async function updateNetworkProvider(id, body) {
+  try {
+    await api(`/v1/network/providers/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) });
+    await loadNetwork();
+    renderNetwork();
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+
+async function setNetworkKey(id) {
+  const provider = state.network.providers.find((p) => p.id === id);
+  const raw = prompt(t("network.key_prompt", { prov: provider ? provider.label : id }), "");
+  if (raw == null) return;
+  await updateNetworkProvider(id, { api_key: raw.trim() });
+  toast(t(raw.trim() ? "network.key_saved" : "network.key_cleared", { prov: id }), "ok");
+}
+
+async function setNetworkWeight(id) {
+  const provider = state.network.providers.find((p) => p.id === id);
+  const raw = prompt(t("network.weight_prompt", { prov: provider ? provider.label : id }), String(provider ? provider.weight : 100));
+  if (raw == null) return;
+  const w = Number(raw);
+  if (!Number.isFinite(w) || w < 0) { toast(t("quality.score_range"), "err"); return; }
+  await updateNetworkProvider(id, { weight: Math.round(w) });
+  toast(t("network.weight_saved", { prov: id, w: Math.round(w) }), "ok");
+}
+
+function renderNetworkResult(kind) {
+  const wrap = $(kind === "search" ? "#network-search-result" : "#network-fetch-result");
+  if (!wrap) return;
+  const result = state.network.result[kind];
+  if (!result) { wrap.innerHTML = ""; return; }
+
+  if (result.error) {
+    wrap.innerHTML = `<div class="callout"><div class="callout-head"><strong>${escapeHtml(result.error)}</strong></div></div>`;
+    return;
+  }
+
+  const kpis = [
+    ["network.served_by", `<code>${escapeHtml(result.provider)}</code>`],
+    ["network.strategy_label", `<code>${escapeHtml(result.strategy)}</code>`],
+    ["network.latency", `${fmtNum(result.latency_ms)} ms`],
+    ["network.results_count", fmtNum(result.count)],
+  ];
+  const failover = (result.failover_from || []).length
+    ? `<p class="hint"><span></span><span>${escapeHtml(t("network.failover"))}: ${(result.failover_from || []).map((f) => `<code>${escapeHtml(f)}</code>`).join(", ")}</span></p>`
+    : "";
+
+  const rows = result.results || [];
+  const table = kind === "search"
+    ? `<div class="table-wrap"><table><thead><tr><th data-i18n="na.col_results">Results</th><th>URL</th></tr></thead><tbody>` +
+      rows.map((r) => `<tr class="row-in"><td><strong>${escapeHtml(r.title || "—")}</strong><div class="small muted">${escapeHtml((r.snippet || "").slice(0, 220))}</div></td><td><code>${escapeHtml(r.url)}</code></td></tr>`).join("") +
+      `</tbody></table></div>`
+    : `<div class="table-wrap"><table><thead><tr><th>URL</th><th>Title</th><th data-i18n="na.col_results">Results</th></tr></thead><tbody>` +
+      rows.map((r) => `<tr class="row-in"><td><code>${escapeHtml(r.url)}</code></td><td>${escapeHtml(r.title || "—")}</td><td>${r.error ? `<span class="pill err">${escapeHtml(r.error)}</span>` : `<span class="pill ok">${fmtNum((r.content || "").length)}</span>`}</td></tr>`).join("") +
+      `</tbody></table></div>`;
+
+  wrap.innerHTML = `
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+      ${kpis.map(([k, v]) => `<article class="kpi-card"><div class="kpi-head"><span class="kpi-label">${escapeHtml(t(k))}</span></div><div class="kpi-value" style="font-size:16px">${v}</div></article>`).join("")}
+    </div>
+    ${failover}
+    ${rows.length ? table : `<div class="empty-mini"><p>${escapeHtml(t("network.empty_results"))}</p></div>`}
+  `;
+}
+
+async function runNetworkSearch(e) {
+  e.preventDefault();
+  if (state.network.running) return;
+  const query = $("#network-query").value.trim();
+  if (!query) { toast(t("network.err_query_required"), "err"); return; }
+  const provider = $("#network-search-provider").value || null;
+  const strategy = provider ? "explicit" : $("#network-search-strategy").value || null;
+  const body = {
+    query,
+    max_results: Number($("#network-max-results").value) || 5,
+    strategy,
+    provider,
+  };
+  if (provider) body.params = _networkCollectedParams("search", provider);
+  await _networkRequest("search", "/v1/network/search", body);
+}
+
+async function runNetworkFetch(e) {
+  e.preventDefault();
+  if (state.network.running) return;
+  const urls = $("#network-urls").value.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+  if (!urls.length) { toast(t("network.err_urls_required"), "err"); return; }
+  const provider = $("#network-fetch-provider").value || null;
+  const strategy = provider ? "explicit" : $("#network-fetch-strategy").value || null;
+  const body = { urls, strategy, provider };
+  if (provider) body.params = _networkCollectedParams("fetch", provider);
+  await _networkRequest("fetch", "/v1/network/fetch", body);
+}
+
+async function _networkRequest(kind, path, body) {
+  const btn = $(kind === "search" ? "#network-search-run" : "#network-fetch-run");
+  state.network.running = true;
+  if (btn) { btn.disabled = true; btn.querySelector("span").textContent = t("network.running"); }
+  try {
+    state.network.result[kind] = await api(path, { method: "POST", body: JSON.stringify(body) });
+    renderNetworkResult(kind);
+    await loadNetwork();
+    renderNetworkProvidersTable();
+  } catch (e) {
+    state.network.result[kind] = { error: e.message, results: [], count: 0 };
+    renderNetworkResult(kind);
+  } finally {
+    state.network.running = false;
+    if (btn) { btn.disabled = false; btn.querySelector("span").textContent = t("network.run"); }
+  }
+}
+
+function bindNetwork() {
+  $$("#network-seg .seg-btn").forEach((b) =>
+    b.addEventListener("click", () => setNetworkPane(b.dataset.pane))
+  );
+  $("#network-search-form").addEventListener("submit", runNetworkSearch);
+  $("#network-fetch-form").addEventListener("submit", runNetworkFetch);
+  const refresh = $("#network-providers-refresh");
+  if (refresh) refresh.addEventListener("click", async () => { await loadNetwork(); renderNetwork(); });
+}
+
+/* ==========================================================================
+   NETWORK ANALYTICS
+   ========================================================================== */
+async function loadNetworkAnalytics() {
+  const days = state.networkAnalytics.days;
+  try {
+    const [summary, usage, quota, recent] = await Promise.all([
+      api(`/v1/analytics/network/summary?days=${days}`),
+      api(`/v1/analytics/network/usage?days=${days}`),
+      api(`/v1/analytics/network/quota`),
+      api(`/v1/analytics/network/recent?limit=50`),
+    ]);
+    state.networkAnalytics = { summary, usage, quota, recent, days };
+  } catch (e) {
+    toast(t("na.load_err", { msg: e.message }), "err");
+  }
+  return state.networkAnalytics;
+}
+
+function renderNetworkAnalytics() {
+  const s = state.networkAnalytics.summary;
+  const usage = state.networkAnalytics.usage;
+  const quota = state.networkAnalytics.quota;
+  const recent = state.networkAnalytics.recent;
+  if (!s) return;
+
+  $("#na-kpi-requests").textContent = fmtNum(s.request_count);
+  $("#na-kpi-requests-sub").textContent = t("overview.across_reqs", { n: fmtNum(s.request_count) });
+  $("#na-kpi-success").textContent = s.request_count ? `${s.success_percent}%` : "—";
+  $("#na-kpi-success-sub").textContent = `${fmtNum(s.success_count)} / ${fmtNum(s.request_count)}`;
+  $("#na-kpi-p50").textContent = s.request_count ? `${fmtNum(s.p50_ms)} ms` : "— ms";
+  $("#na-kpi-p50-sub").textContent = `p99 ${fmtNum(s.p99_ms)} ms`;
+  $("#na-kpi-providers").textContent = fmtNum(s.active_providers);
+  $("#na-kpi-providers-sub").textContent = t("na.providers_active_sub", { n: fmtNum(s.active_providers) });
+  const naSub = $("#na-summary-sub");
+  if (naSub) naSub.textContent = t("na.summary_sub", { days: s.days, n: fmtNum(s.request_count) });
+
+  // Requests by provider
+  const chart = $("#na-bar-chart");
+  const byProvider = (usage && usage.by_provider) || [];
+  if (!byProvider.length) {
+    chart.innerHTML = `<div class="empty-mini"><p>${t("na.no_traffic")}</p><p class="muted">${t("na.no_traffic_sub")}</p></div>`;
+  } else {
+    const max = Math.max(...byProvider.map((p) => p.request_count)) || 1;
+    chart.innerHTML = byProvider.slice(0, 10).map((p) => {
+      const pct = Math.max(2, (p.request_count / max) * 100);
+      return `<div class="bar-row">
+        <div class="bar-label">${escapeHtml(p.provider)}</div>
+        <div class="bar-track"><div class="bar-fill" style="right:${100 - pct}%"></div></div>
+        <div class="bar-value">${fmtNum(p.request_count)} <span class="reqs">${fmtNum(p.success_percent)}%</span></div>
+      </div>`;
+    }).join("");
+  }
+
+  // Latency table
+  const ut = $("#na-usage-table tbody");
+  ut.innerHTML = byProvider.length
+    ? byProvider.map((p) => `<tr class="row-in">
+        <td><strong>${escapeHtml(p.provider)}</strong></td>
+        <td>${fmtNum(p.request_count)}</td>
+        <td>${fmtNum(p.success_percent)}%</td>
+        <td>${fmtNum(p.p50_ms)} ms</td>
+        <td>${fmtNum(p.p99_ms)} ms</td>
+      </tr>`).join("")
+    : `<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">${t("analytics.no_data_window")}</td></tr>`;
+
+  // Quota table
+  const qt = $("#na-quota-table tbody");
+  const quotaRows = (quota && quota.providers) || [];
+  qt.innerHTML = quotaRows.map((p) => {
+    const remaining = p.monthly ? `${fmtNum(p.remaining)} (${p.remaining_percent}%)` : `<span class="muted">${t("na.unmetered")}</span>`;
+    return `<tr class="row-in">
+      <td><strong>${escapeHtml(p.provider)}</strong></td>
+      <td class="num">${p.monthly ? `${fmtNum(p.used)} / ${fmtNum(p.monthly)}` : '<span class="muted">—</span>'}</td>
+      <td class="num">${remaining}</td>
+      <td>${p.resets_at ? fmtTime(p.resets_at) : '<span class="muted">—</span>'}</td>
+    </tr>`;
+  }).join("");
+
+  // Recent table
+  const rt = $("#na-recent-table tbody");
+  const rEmpty = $("#na-recent-empty");
+  const items = (recent && recent.items) || [];
+  if (!items.length) {
+    rt.innerHTML = "";
+    if (rEmpty) rEmpty.classList.add("shown");
+  } else {
+    if (rEmpty) rEmpty.classList.remove("shown");
+    rt.innerHTML = items.map((it) => {
+      const ok = (it.status_code || 0) < 400;
+      const kindLabel = t(it.kind === "fetch" ? "na.kind_fetch" : "na.kind_search");
+      return `<tr class="row-in copy-row" data-trace="${escapeHtml(it.provider || "")}">
+        <td>${fmtTime(it.created_at)}</td>
+        <td><span class="pill ${ok ? "ok" : "err"}">${escapeHtml(kindLabel)}</span></td>
+        <td><code>${escapeHtml(it.provider)}</code></td>
+        <td>${escapeHtml(it.strategy)}</td>
+        <td>${fmtNum(it.kind === "fetch" ? it.url_count : it.result_count)}</td>
+        <td>${fmtNum(it.latency_ms)} ms</td>
+        <td><span class="pill ${ok ? "ok" : "err"}">${it.status_code}${it.error_type ? ` ${escapeHtml(it.error_type)}` : ""}</span></td>
+      </tr>`;
+    }).join("");
+    $$("#na-recent-table .copy-row").forEach((row) =>
+      row.addEventListener("click", () => { if (row.dataset.trace) copyToClipboard(row.dataset.trace); })
+    );
+  }
+}
+
+function bindNetworkAnalytics() {
+  $$("#na-window-seg .seg-btn").forEach((b) =>
+    b.addEventListener("click", async () => {
+      $$("#na-window-seg .seg-btn").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      state.networkAnalytics.days = parseInt(b.dataset.days, 10);
+      await loadNetworkAnalytics();
+      renderNetworkAnalytics();
+    })
+  );
+}
+
+/* ==========================================================================
    MODELS
    ========================================================================== */
 async function loadModels() {
@@ -1474,6 +1973,8 @@ function paletteCommands() {
     { id: "go-routing",   title: t("palette.go_routing"),      meta: t("palette.meta_tab"),  hint: "3",  do: () => setTab("routing")   },
     { id: "go-analytics", title: t("palette.go_analytics"),    meta: t("palette.meta_tab"),  hint: "4",  do: () => setTab("analytics") },
     { id: "go-keys",      title: t("palette.go_keys"),         meta: t("palette.meta_tab"),  hint: "5",  do: () => setTab("keys")      },
+    { id: "go-network",   title: t("palette.go_network"),      meta: t("palette.meta_tab"),  hint: "7",  do: () => setTab("network")   },
+    { id: "go-network-analytics", title: t("palette.go_network_analytics"), meta: t("palette.meta_tab"), hint: "8", do: () => setTab("network-analytics") },
     { id: "copy-base",    title: t("palette.copy_base"),       meta: t("palette.meta_action"), hint: "", do: () => copyToClipboard(`${location.origin}/v1`) },
     { id: "copy-snip",    title: t("palette.copy_snippet"),    meta: t("palette.meta_action"), hint: "", do: () => copyToClipboard($("#quickstart-code").textContent) },
     { id: "open-help",    title: t("palette.open_help"),       meta: t("palette.meta_help"), hint: "?",  do: () => openHelp() },
@@ -1588,8 +2089,8 @@ function bindKeyboard() {
     if ($("#auth-gate").hidden === false) return;
 
     if (e.key === "?") { e.preventDefault(); $("#help-drawer").hidden ? openHelp() : closeHelp(); }
-    if (e.key >= "1" && e.key <= "5") {
-      const order = ["overview", "providers", "routing", "analytics", "keys"];
+    if (e.key >= "1" && e.key <= "8") {
+      const order = ["overview", "providers", "routing", "analytics", "keys", "quality", "network", "network-analytics"];
       const idx = parseInt(e.key, 10) - 1;
       if (order[idx]) setTab(order[idx]);
     }
@@ -1645,6 +2146,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindWindowSeg();
   bindKeyForm();
   bindQualityRefresh();
+  bindNetwork();
+  bindNetworkParams();
+  bindNetworkAnalytics();
   bindHelp();
   bindPalette();
   bindKeyboard();

@@ -44,6 +44,19 @@ _PROVIDERS_FROM_ENV = (
     "deepseek",     # deepseek-chat / -reasoner / -v3 / -v3.2.
 )
 
+# Credentials for the aggregated network surface (`/v1/network/*`). Kept in a
+# separate tuple from the LLM providers: the two sets are resolved by
+# different code paths (`env_provider_keys` vs `env_search_provider_keys`) and
+# merging them would make `TAVILY_API_KEY` look like an LLM provider to the
+# router builder.
+#
+# Only the vendors that REQUIRE a key are listed. The keyless ones (Exa,
+# Parallel, Firecrawl, Keenable) need no configuration at all.
+_SEARCH_PROVIDERS_FROM_ENV = (
+    "tavily",
+    "tinyfish",
+)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -87,6 +100,12 @@ class Settings(BaseSettings):
     fireworks_api_key: str | None = None
     xai_api_key: str | None = None
     deepseek_api_key: str | None = None
+
+    # ── Aggregated web search / fetch (`/v1/network/*`) ──
+    # Free-tier keys for the metered vendors. Everything else in the network
+    # surface is keyless and works with no configuration.
+    tavily_api_key: str | None = None
+    tinyfish_api_key: str | None = None
 
     # ── Hosted-as-upstream (standard fallback) ──
     # When configured (env or via dashboard), every catalog model gets an extra
@@ -160,6 +179,19 @@ class Settings(BaseSettings):
         """Return the configured ENV-sourced provider keys as {provider: key}."""
         out: dict[str, str] = {}
         for prov in _PROVIDERS_FROM_ENV:
+            val = getattr(self, f"{prov}_api_key", None)
+            if val:
+                out[prov] = val
+        return out
+
+    def env_search_provider_keys(self) -> dict[str, str]:
+        """Return env-sourced keys for the network providers as {provider: key}.
+
+        Same 12-factor escape hatch as `env_provider_keys`: set it in `.env`
+        and restart, no dashboard round-trip. A DB row still wins over env.
+        """
+        out: dict[str, str] = {}
+        for prov in _SEARCH_PROVIDERS_FROM_ENV:
             val = getattr(self, f"{prov}_api_key", None)
             if val:
                 out[prov] = val

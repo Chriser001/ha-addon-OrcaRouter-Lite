@@ -261,7 +261,6 @@ async def discover_custom_models(
     """
     from app.model_discovery import discover_provider_models
     from packages.litellm_adapter.catalog import (
-        models_for_provider,
         sync_custom_provider_models,
     )
 

@@ -30,6 +30,10 @@ options:
   deepseek_api_key: ""
   orcarouter_api_key: ""
   artificial_analysis_api_key: ""
+  # 网络搜索/抓取（/v1/network/*）中需要密钥的两家免费层级供应商；
+  # 其余四家（Exa/Parallel/Firecrawl/Keenable）免密钥，无需配置。
+  tavily_api_key: ""
+  tinyfish_api_key: ""
 schema:
   log_level: str
   credential_encryption_key: str
@@ -47,3 +51,5 @@ schema:
   deepseek_api_key: str
   orcarouter_api_key: str
   artificial_analysis_api_key: str
+  tavily_api_key: str
+  tinyfish_api_key: str
