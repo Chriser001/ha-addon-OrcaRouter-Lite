@@ -1,8 +1,11 @@
 """Registry + parameter metadata for the aggregated network surface."""
 
+import json
+
 import pytest
 
 from app import network_providers as np
+from app.network_providers import _tavily_usage
 
 EXPECTED_IDS = {"exa", "parallel", "firecrawl", "keenable", "tavily", "tinyfish"}
 
@@ -194,3 +197,78 @@ def test_only_vendors_with_a_balance_endpoint_declare_usage():
     # Declaring `usage` without an adapter would 500 the refresh route.
     for spec in np.REGISTRY.values():
         assert (spec.usage is not None) is (spec.id in ("tavily",)), spec.id
+
+
+# ── Tavily /usage payload parsing ─────────────────────────────────────────
+def _usage(payload):
+    """Run `_tavily_usage` against a canned payload (no HTTP)."""
+    import asyncio
+
+    class _Resp:
+        status_code = 200
+
+        def __init__(self):
+            self.text = json.dumps(payload)
+
+        def json(self):
+            return payload
+
+    class _Client:
+        async def get(self, *a, **k):
+            return _Resp()
+
+    return asyncio.run(_tavily_usage(_Client(), api_key="tvly-test", timeout=5.0))
+
+
+def test_usage_documented_shape():
+    out = _usage({
+        "key": {"usage": 150, "limit": 1000, "search_usage": 100, "extract_usage": 25},
+        "account": {"current_plan": "Bootstrap", "plan_usage": 500, "plan_limit": 15000},
+    })
+    assert out["used"] == 150
+    assert out["monthly"] == 1000
+    assert out["remaining"] == 850
+    assert out["remaining_percent"] == 85.0
+    assert out["plan"] == "Bootstrap"
+    assert out["breakdown"]["search_usage"] == 100
+
+
+def test_usage_renamed_fields():
+    # The live endpoint has shipped field names other than the documented
+    # example; the parser must survive a rename.
+    out = _usage({"key": {"current_usage": 42, "usage_limit": 1000}})
+    assert (out["used"], out["monthly"]) == (42, 1000)
+    assert out["source"] == "current_usage"
+
+
+def test_usage_numeric_strings():
+    out = _usage({"key": {"usage": "150", "limit": "1,000"}})
+    assert (out["used"], out["monthly"]) == (150, 1000)
+
+
+def test_usage_falls_back_to_account_block():
+    out = _usage({"account": {"current_plan": "Bootstrap", "plan_usage": 500, "plan_limit": 15000}})
+    assert (out["used"], out["monthly"]) == (500, 15000)
+    assert out["source"] == "plan_usage"
+
+
+def test_usage_flat_shape():
+    out = _usage({"usage": 10, "limit": 1000})
+    assert (out["used"], out["monthly"]) == (10, 1000)
+
+
+def test_usage_zero_used_is_not_falsy_bug():
+    # `0` is a legitimate reading — a falsy check would drop it and fall
+    # through to the account block (or worse, report an error).
+    out = _usage({"key": {"usage": 0, "limit": 1000}})
+    assert (out["used"], out["monthly"]) == (0, 1000)
+
+
+def test_usage_unknown_shape_echoes_payload():
+    import pytest
+
+    with pytest.raises(np.ProviderError) as exc:
+        _usage({"hello": "world", "foo": 1})
+    # The error must carry the payload — otherwise a vendor rename is a dead
+    # end ("missing key.usage") with nothing to debug from.
+    assert '"hello": "world"' in str(exc.value)

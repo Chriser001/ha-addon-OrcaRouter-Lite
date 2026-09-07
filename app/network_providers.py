@@ -643,6 +643,28 @@ async def _tavily_fetch(client, urls: list[str], *, api_key, params: dict, timeo
     return out
 
 
+def _pick_int(block: dict, names: tuple[str, ...]) -> tuple[int | None, str | None]:
+    """First usable integer under any of `names`, as (value, key_used).
+
+    Accepts numeric strings ("150") — Tavily has returned counts as strings
+    before. Booleans are skipped: `True` is an `int` in Python, and a boolean
+    flag under one of these names must not read as a usage count.
+    """
+    if not isinstance(block, dict):
+        return None, None
+    for name in names:
+        value = block.get(name)
+        if isinstance(value, bool) or value is None:
+            continue
+        if isinstance(value, (int, float)):
+            return int(value), name
+        if isinstance(value, str):
+            text = value.strip().replace(",", "")
+            if text.lstrip("+-").isdigit():
+                return int(text), name
+    return None, None
+
+
 async def _tavily_usage(client, *, api_key, timeout: float) -> dict:
     """Live credit balance from Tavily's `/usage` endpoint.
 
@@ -657,22 +679,60 @@ async def _tavily_usage(client, *, api_key, timeout: float) -> dict:
     )
     _raise_for_status(response)
     data = _json(response)
-    key = data.get("key") or {}
-    limit = key.get("limit")
-    used = key.get("usage")
-    if not isinstance(limit, int) or not isinstance(used, int):
-        raise ProviderError("unexpected usage payload: missing key.usage/key.limit")
+    key = data.get("key") if isinstance(data.get("key"), dict) else {}
+    account = data.get("account") if isinstance(data.get("account"), dict) else {}
+
+    # Tavily's documented example uses key.usage/key.limit, but the live
+    # endpoint has shipped at least one other shape (field names drift by plan
+    # and over time, and the docs' child-attribute schema is collapsed). Probe
+    # the known variants instead of hardcoding one — and if none match, put a
+    # slice of the payload in the error so the next rename is a one-line fix
+    # instead of a dead end.
+    used, used_src = _pick_int(
+        key, ("usage", "current_usage", "used", "usage_count", "credits_used")
+    ) or (None, None)
+    limit, limit_src = _pick_int(
+        key, ("limit", "current_limit", "usage_limit", "limit_total", "credits_limit")
+    ) or (None, None)
+
+    if used is None or limit is None:
+        # Fall back to the account block, which every observed shape carries.
+        a_used, a_used_src = _pick_int(account, ("plan_usage", "usage", "used"))
+        a_limit, a_limit_src = _pick_int(account, ("plan_limit", "limit"))
+        if used is None and a_used is not None:
+            used, used_src = a_used, a_used_src or "account"
+        if limit is None and a_limit is not None:
+            limit, limit_src = a_limit, a_limit_src or "account"
+
+    if used is None or limit is None:
+        # Last resort: some shapes put the pair at the top level.
+        t_used, t_used_src = _pick_int(data, ("usage", "used", "current_usage"))
+        t_limit, t_limit_src = _pick_int(data, ("limit", "usage_limit", "current_limit"))
+        if used is None and t_used is not None:
+            used, used_src = t_used, t_used_src or "top"
+        if limit is None and t_limit is not None:
+            limit, limit_src = t_limit, t_limit_src or "top"
+
+    if used is None or limit is None:
+        raise ProviderError(
+            "unexpected usage payload: no usage/limit pair found "
+            f"(looked in key / account / top level); got: {json.dumps(data)[:400]}"
+        )
+
     remaining = max(0, limit - used)
     return {
         "monthly": limit,
         "used": used,
         "remaining": remaining,
         "remaining_percent": round(100 * remaining / limit, 1) if limit else None,
+        # Which block supplied the numbers — a payload that only carries the
+        # account rollup would otherwise silently masquerade as key-level.
+        "source": used_src or limit_src,
         # Tavily's allowance resets monthly; we don't get a reset date, so the
         # rolling marker stays whatever the local counter was tracking.
-        "plan": (data.get("account") or {}).get("current_plan"),
+        "plan": account.get("current_plan"),
         "breakdown": {
-            k: key.get(k)
+            k: key.get(k) if key.get(k) is not None else account.get(k)
             for k in ("search_usage", "extract_usage", "crawl_usage", "map_usage", "research_usage")
         },
         "raw": data,
