@@ -238,7 +238,7 @@ def test_usage_renamed_fields():
     # example; the parser must survive a rename.
     out = _usage({"key": {"current_usage": 42, "usage_limit": 1000}})
     assert (out["used"], out["monthly"]) == (42, 1000)
-    assert out["source"] == "current_usage"
+    assert out["source"] == "key.current_usage/key.usage_limit"
 
 
 def test_usage_numeric_strings():
@@ -249,7 +249,7 @@ def test_usage_numeric_strings():
 def test_usage_falls_back_to_account_block():
     out = _usage({"account": {"current_plan": "Bootstrap", "plan_usage": 500, "plan_limit": 15000}})
     assert (out["used"], out["monthly"]) == (500, 15000)
-    assert out["source"] == "plan_usage"
+    assert out["source"] == "account.plan.plan_usage/account.plan.plan_limit"
 
 
 def test_usage_flat_shape():
@@ -262,6 +262,41 @@ def test_usage_zero_used_is_not_falsy_bug():
     # through to the account block (or worse, report an error).
     out = _usage({"key": {"usage": 0, "limit": 1000}})
     assert (out["used"], out["monthly"]) == (0, 1000)
+
+
+def test_usage_real_researcher_plan_payload():
+    """The payload a real dev key returns (captured 2026-09).
+
+    This is the shape that broke the first cut: key.limit is NULL on real
+    plans, so key-level numbers are unusable and the binding allowance lives
+    in account.plan_usage/plan_limit.
+    """
+    out = _usage({
+        "key": {"usage": 0, "limit": None, "search_usage": 0, "crawl_usage": 0,
+                "extract_usage": 0, "map_usage": 0, "research_usage": 0},
+        "account": {"current_plan": "Researcher", "plan_usage": 21, "plan_limit": 1000,
+                    "search_usage": 21, "crawl_usage": 0, "extract_usage": 0,
+                    "map_usage": 0, "research_usage": 0,
+                    "paygo_usage": 0, "paygo_limit": None},
+    })
+    # Must NOT pair key.usage=0 with account.plan_limit=1000 - that ratio
+    # describes nothing.
+    assert (out["used"], out["monthly"]) == (21, 1000)
+    assert out["plan"] == "Researcher"
+    assert out["source"].startswith("account.plan.")
+    assert out["paygo"] == {"usage": 0, "limit": None}
+    # Breakdown must come from the block that supplied the pair: the key
+    # block on this plan is all zeros while account carries the real counts.
+    assert out["breakdown"]["search_usage"] == 21
+
+
+def test_usage_null_limit_key_is_rejected_not_zero_paired():
+    # key.limit: null must not silently become "0 used / no limit" or coerce
+    # into a cross-block pair - it's the signature of a plan-gated key.
+    import pytest
+
+    with pytest.raises(np.ProviderError):
+        _usage({"key": {"usage": 0, "limit": None}})
 
 
 def test_usage_unknown_shape_echoes_payload():

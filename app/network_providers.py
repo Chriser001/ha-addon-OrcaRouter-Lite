@@ -668,9 +668,9 @@ def _pick_int(block: dict, names: tuple[str, ...]) -> tuple[int | None, str | No
 async def _tavily_usage(client, *, api_key, timeout: float) -> dict:
     """Live credit balance from Tavily's `/usage` endpoint.
 
-    Returns the key-level numbers (what actually gates API calls on the free
-    plan) plus the account-level block verbatim, so the dashboard can show
-    which plan the allowance came from without us re-shaping it.
+    Returns the binding allowance plus the account block verbatim, so the
+    dashboard can show which plan the allowance came from without us
+    re-shaping it.
     """
     response = await client.get(
         f"{TAVILY_API_URL}/usage",
@@ -683,40 +683,36 @@ async def _tavily_usage(client, *, api_key, timeout: float) -> dict:
     account = data.get("account") if isinstance(data.get("account"), dict) else {}
 
     # Tavily's documented example uses key.usage/key.limit, but the live
-    # endpoint has shipped at least one other shape (field names drift by plan
-    # and over time, and the docs' child-attribute schema is collapsed). Probe
-    # the known variants instead of hardcoding one — and if none match, put a
-    # slice of the payload in the error so the next rename is a one-line fix
-    # instead of a dead end.
-    used, used_src = _pick_int(
-        key, ("usage", "current_usage", "used", "usage_count", "credits_used")
-    ) or (None, None)
-    limit, limit_src = _pick_int(
-        key, ("limit", "current_limit", "usage_limit", "limit_total", "credits_limit")
-    ) or (None, None)
+    # endpoint doesn't match it: on real plans key.limit is null (no per-key
+    # cap) and the binding numbers are account.plan_usage/plan_limit. So we
+    # probe blocks in order and require BOTH numbers from the SAME block —
+    # mixing a key-level usage with an account-level limit would report a
+    # ratio that describes nothing.
+    _USED_NAMES = ("usage", "current_usage", "used", "usage_count", "credits_used")
+    _LIMIT_NAMES = ("limit", "current_limit", "usage_limit", "limit_total", "credits_limit")
+    candidates = (
+        (key, "key", _USED_NAMES, _LIMIT_NAMES),
+        # The account block calls its pair plan_usage/plan_limit.
+        (account, "account.plan", ("plan_usage", "usage", "used"), ("plan_limit", "limit")),
+        (data, "top", _USED_NAMES, _LIMIT_NAMES),
+    )
 
-    if used is None or limit is None:
-        # Fall back to the account block, which every observed shape carries.
-        a_used, a_used_src = _pick_int(account, ("plan_usage", "usage", "used"))
-        a_limit, a_limit_src = _pick_int(account, ("plan_limit", "limit"))
-        if used is None and a_used is not None:
-            used, used_src = a_used, a_used_src or "account"
-        if limit is None and a_limit is not None:
-            limit, limit_src = a_limit, a_limit_src or "account"
-
-    if used is None or limit is None:
-        # Last resort: some shapes put the pair at the top level.
-        t_used, t_used_src = _pick_int(data, ("usage", "used", "current_usage"))
-        t_limit, t_limit_src = _pick_int(data, ("limit", "usage_limit", "current_limit"))
-        if used is None and t_used is not None:
-            used, used_src = t_used, t_used_src or "top"
-        if limit is None and t_limit is not None:
-            limit, limit_src = t_limit, t_limit_src or "top"
+    used = limit = None
+    source = None
+    source_block: dict = {}
+    for block, label, used_names, limit_names in candidates:
+        block_used = _pick_int(block, used_names)
+        block_limit = _pick_int(block, limit_names)
+        if block_used[0] is not None and block_limit[0] is not None:
+            used, limit = block_used[0], block_limit[0]
+            source = f"{label}.{block_used[1]}/{label}.{block_limit[1]}"
+            source_block = block
+            break
 
     if used is None or limit is None:
         raise ProviderError(
-            "unexpected usage payload: no usage/limit pair found "
-            f"(looked in key / account / top level); got: {json.dumps(data)[:400]}"
+            "unexpected usage payload: no usage/limit pair in one block "
+            f"(key / account / top level); got: {json.dumps(data)[:400]}"
         )
 
     remaining = max(0, limit - used)
@@ -725,16 +721,21 @@ async def _tavily_usage(client, *, api_key, timeout: float) -> dict:
         "used": used,
         "remaining": remaining,
         "remaining_percent": round(100 * remaining / limit, 1) if limit else None,
-        # Which block supplied the numbers — a payload that only carries the
-        # account rollup would otherwise silently masquerade as key-level.
-        "source": used_src or limit_src,
+        # Which block supplied the numbers, e.g. "account.plan_usage" — so an
+        # account-rollup reading is never mistaken for a key-level one.
+        "source": source,
         # Tavily's allowance resets monthly; we don't get a reset date, so the
         # rolling marker stays whatever the local counter was tracking.
         "plan": account.get("current_plan"),
+        # Read the breakdown from the SAME block that supplied the pair: on
+        # real plans the key block is all zeros while account carries the
+        # actual per-endpoint counts, and preferring key would show 0s.
         "breakdown": {
-            k: key.get(k) if key.get(k) is not None else account.get(k)
+            k: source_block.get(k) if source_block.get(k) is not None else account.get(k)
             for k in ("search_usage", "extract_usage", "crawl_usage", "map_usage", "research_usage")
         },
+        # Pay-as-you-go is billed separately from the plan allowance.
+        "paygo": {"usage": account.get("paygo_usage"), "limit": account.get("paygo_limit")},
         "raw": data,
     }
 
