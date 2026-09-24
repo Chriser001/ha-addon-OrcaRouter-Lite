@@ -12,6 +12,10 @@ import time
 
 import structlog
 
+from packages.litellm_adapter.hosted_fallback import (
+    hidden_params_of,
+    resolve_provider_and_fallback,
+)
 from packages.litellm_adapter.types import ProviderDeployment, UpstreamProviderError
 
 logger = structlog.get_logger(__name__)
@@ -219,48 +223,37 @@ class OrcaLiteLLMClient:
         #     ("openai", "anthropic", "gemini", ...). Beats our own
         #     deployment-loop matching, which can mis-attribute when LiteLLM
         #     rewrites the model name to a dated alias mid-cascade.
-        hidden = getattr(resp, "_hidden_params", {}) or {}
+        #   - model_id / api_base: which deployment won. Hosted pins
+        #     model_info.id to `hosted::{wire_id}` and always sets api_base;
+        #     without those, hosted traffic is attributed as "openai"
+        #     (custom_llm_provider on the hosted entry) and a 429-cooled
+        #     BYOK key is silently bypassed.
+        hidden = hidden_params_of(resp)
         litellm_cost_usd = hidden.get("response_cost")
         litellm_provider = hidden.get("custom_llm_provider")
 
         # Convert litellm's ModelResponse to a plain dict + attach orca metadata.
         out = resp.model_dump() if hasattr(resp, "model_dump") else dict(resp)
 
-        # Provider attribution: LiteLLM's own field wins. Fall back to a
-        # deployment-loop lookup only when LiteLLM didn't supply one (very
-        # old LiteLLM versions; defensive).
-        provider = litellm_provider or "unknown"
-        if not litellm_provider:
-            for d in self._deployments:
-                if d.litellm_model == out.get("model") or d.model_name == out.get("model"):
-                    provider = d.provider
-                    break
-        else:
-            # But what LiteLLM reports is the WIRE PROTOCOL it spoke —
-            # "openai" for every OpenAI-compatible custom endpoint — not the
-            # provider the operator configured. When the served model maps to
-            # exactly one deployment and that deployment's configured protocol
-            # matches LiteLLM's report, LiteLLM is just echoing our own
-            # settings back; the deployment's logical provider (stepfun,
-            # my-gateway, orcarouter, ...) is the truthful attribution.
-            # Ambiguous matches (the same model_name under several providers)
-            # stay on LiteLLM's answer — guessing would be worse.
-            served = out.get("model")
-            bare = (
-                served.split("/", 1)[-1]
-                if isinstance(served, str) and "/" in served
-                else served
-            )
-            matches = [
-                d for d in self._deployments
-                if served in (d.litellm_model, d.model_name) or bare == d.model_name
-            ]
-            if len(matches) == 1 and matches[0].custom_llm_provider == litellm_provider:
-                provider = matches[0].provider
+        provider, hosted_fallback = resolve_provider_and_fallback(
+            self._deployments,
+            hidden=hidden,
+            served_model=out.get("model"),
+            requested_model=kwargs.get("model"),
+            litellm_provider=litellm_provider,
+        )
 
         out["_orca_meta"] = {
             "provider": provider,
             "latency_ms": latency_ms,
             "cost_usd": litellm_cost_usd,
         }
+        if hosted_fallback:
+            out["_orca_meta"]["fallback"] = True
+            logger.info(
+                "hosted_fallback_used",
+                model=out.get("model"),
+                requested=kwargs.get("model"),
+                provider=provider,
+            )
         return out
