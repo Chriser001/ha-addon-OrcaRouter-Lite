@@ -24,11 +24,21 @@ class ChatCompletionRequest(BaseModel):
     stop: str | list[str] | None = None
     presence_penalty: float | None = None
     frequency_penalty: float | None = None
+    # Pass-through for OpenAI's `logit_bias` map (token id → bias).
+    # Without this field declared, Pydantic silently drops it and
+    # LiteLLM never sees the token suppression / boost.
+    logit_bias: dict[int, float] | None = None
     user: str | None = None
     seed: int | None = None
     response_format: dict | None = None
     tools: list[dict] | None = None
     tool_choice: str | dict | None = None
+    # Pass-through for OpenAI's `parallel_tool_calls`. Without this field
+    # declared, Pydantic silently drops it and `false` never reaches the
+    # upstream — the model keeps returning multiple tool calls in one turn.
+    # `False` is falsy but not None, so `model_dump(exclude_none=True)`
+    # still forwards it through `completion_kwargs` to LiteLLM.
+    parallel_tool_calls: bool | None = None
     # Pass-through for OpenAI's `stream_options` block (e.g.
     # `{"include_usage": true}`). Without this field declared, Pydantic
     # silently drops it from the request and our own auto-inject in

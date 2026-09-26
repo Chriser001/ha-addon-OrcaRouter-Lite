@@ -80,6 +80,7 @@ def test_cache_key_differs_on_model():
     # even at temperature 0 — the only case that is cacheable at all.
     ("presence_penalty", 1.5),
     ("frequency_penalty", 1.5),
+    ("logit_bias", {15339: -100.0, 31763: -100.0}),
 ])
 def test_cache_key_differs_on_every_output_shaping_parameter(field, other):
     """Regression: the key covered only model/messages/temperature/tools/
@@ -169,6 +170,65 @@ def test_should_cache_skips_when_seed_unspecified_with_high_temp():
     base = {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "hi"}]}
     # With explicit seed AND any temp → still cacheable (seed pins output)
     assert is_cacheable({**base, "temperature": 0.7, "seed": 42}) is True
+
+
+def test_should_cache_blocks_narrowed_top_p_without_seed():
+    """top_p < 1 samples from a truncated distribution even at temperature 0."""
+    from app.prompt_cache import is_cacheable
+
+    base = {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "hi"}]}
+    assert is_cacheable({**base, "temperature": 0.0, "top_p": 0.5}) is False
+    assert is_cacheable({**base, "temperature": 0.0, "top_p": 1.0}) is True
+    assert is_cacheable({**base, "temperature": 0.0, "top_p": 1}) is True
+    # A seed overrides any sampling param.
+    assert is_cacheable({**base, "temperature": 0.7, "top_p": 0.3, "seed": 7}) is True
+
+
+def test_cache_key_version_bump_invalidates_v1_entries():
+    """A v1-era entry (no 'v' field, six fields only) can never collide
+    with the v2 space, even when the extra params are all omitted."""
+    import hashlib
+    import json
+
+    from app.prompt_cache import cache_key
+
+    msgs = [{"role": "user", "content": "hi"}]
+    k = cache_key(
+        model="m", messages=msgs, temperature=0.0,
+        tools=None, response_format=None, seed=None,
+    )
+    legacy_payload = {
+        "model": "m",
+        "messages": msgs,
+        "temperature": 0.0,
+        "tools": None,
+        "response_format": None,
+        "seed": None,
+    }
+    legacy = hashlib.sha256(
+        json.dumps(legacy_payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    assert k != legacy
+    # And the version is actually in the hashed payload (not just extra Nones).
+    v2_without_version = {
+        "model": "m",
+        "messages": msgs,
+        "temperature": 0.0,
+        "tools": None,
+        "response_format": None,
+        "seed": None,
+        "max_tokens": None,
+        "stop": None,
+        "tool_choice": None,
+        "top_p": None,
+        "n": None,
+        "presence_penalty": None,
+        "frequency_penalty": None,
+    }
+    pre_version = hashlib.sha256(
+        json.dumps(v2_without_version, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    assert k != pre_version
 
 
 @pytest.mark.asyncio
