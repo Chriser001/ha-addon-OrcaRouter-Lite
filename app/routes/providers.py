@@ -48,7 +48,11 @@ from app import cache_invalidation_bus, model_discovery
 from app.config import get_settings
 from app.deps import get_db, get_key_context
 from app.router_cache import resolve_protocol, usable_providers_from_db
-from packages.auth.encryption import decrypt_credential, encrypt_credential
+from packages.auth.encryption import (
+    credential_is_decryptable,
+    decrypt_credential,
+    encrypt_credential,
+)
 from packages.auth.types import KeyContext
 from packages.db.models.provider_key import ProviderKey
 from packages.litellm_adapter.catalog import (
@@ -80,6 +84,10 @@ class ProviderKeyOut(BaseModel):
     # Custom endpoint, or None when this provider uses the vendor's public URL
     # and its models come from litellm's catalog.
     api_base: str | None = None
+    # False when the stored ciphertext does not open with the current
+    # CREDENTIAL_ENCRYPTION_KEY (typical after a key rotation). Env rows
+    # are always decryptable — they are not sealed.
+    decryptable: bool = True
 
 
 # Sentinel for "the client did not send this field", distinct from None
@@ -175,6 +183,7 @@ async def list_providers(
                 is_enabled=r.is_enabled,
                 source="db",
                 api_base=r.api_base,
+                decryptable=credential_is_decryptable(r.encrypted_key),
             ).model_dump()
         )
 
@@ -196,6 +205,7 @@ async def list_providers(
                 is_enabled=True,
                 source="env",
                 api_base=env_bases.get(prov),
+                decryptable=True,
             ).model_dump()
         )
 
@@ -281,6 +291,7 @@ async def set_provider_key(
         is_enabled=existing.is_enabled,
         source="db",
         api_base=existing.api_base,
+        decryptable=True,
     ).model_dump()
 
 
