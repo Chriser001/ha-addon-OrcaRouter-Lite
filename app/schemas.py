@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, Field, field_validator
+
+from app.response_format import normalize_response_format
 
 
 class ChatMessage(BaseModel):
@@ -18,6 +22,11 @@ class ChatCompletionRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1)
     temperature: float | None = None
     max_tokens: int | None = None
+    # openai-python >=1.51 sends this instead of `max_tokens`. Without
+    # the field declared, Pydantic silently drops it and LiteLLM never
+    # sees an output cap. Forward as-is; do not collapse into max_tokens
+    # (o-series / gpt-5 reject max_tokens).
+    max_completion_tokens: int | None = None
     top_p: float | None = None
     n: int | None = None
     stream: bool = False
@@ -45,3 +54,14 @@ class ChatCompletionRequest(BaseModel):
     # chat.py can't see what the client actually asked for, so an
     # explicit `include_usage=false` from the client gets clobbered.
     stream_options: dict | None = None
+
+    @field_validator("response_format")
+    @classmethod
+    def _normalize_response_format(cls, value: Any) -> Any:
+        # LangChain json_schema / OpenAI structured outputs. The field is
+        # already declared (so it is not silently dropped) but several
+        # on-the-wire shapes are rejected upstream as
+        # "Invalid schema for response_format". Normalize before dump.
+        if isinstance(value, dict):
+            return normalize_response_format(value)
+        return value
