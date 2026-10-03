@@ -60,6 +60,216 @@ async def test_list_returns_empty_initially(authed_client):
     assert r.json() == {"providers": []}
 
 
+async def test_put_empty_or_whitespace_key_is_rejected(authed_client):
+    """Empty / whitespace-only values stay 422; format warnings are a
+    separate, softer path for non-empty junk."""
+    for value in ("", "   ", "\n\t"):
+        r = await authed_client.put(
+            "/v1/providers/openai", json={"api_key": value}
+        )
+        assert r.status_code == 422, r.text
+        msg = (
+            r.json().get("error", {}).get("message")
+            or r.json().get("detail")
+            or ""
+        )
+        assert "empty" in str(msg).lower()
+
+
+async def test_put_obviously_invalid_key_warns_but_still_stores(authed_client):
+    """Issue #142: `"abc"` must not 200 silently. Warn at PUT, still
+    persist (BYOK — warning, not rejection) so unusual keys aren't blocked."""
+    r = await authed_client.put(
+        "/v1/providers/openai",
+        json={"api_key": "abc"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["provider"] == "openai"
+    assert body["is_enabled"] is True
+    assert body["source"] == "db"
+    warnings = body.get("warnings") or []
+    assert len(warnings) == 1
+    assert "sk-" in warnings[0]
+    assert "OpenAI" in warnings[0]
+    assert "Verify this is correct" in warnings[0]
+
+    listing = await authed_client.get("/v1/providers")
+    rows = listing.json()["providers"]
+    assert len(rows) == 1
+    assert rows[0]["provider"] == "openai"
+    assert "warnings" not in rows[0]
+
+
+async def test_put_matching_prefix_has_no_warnings(authed_client):
+    r = await authed_client.put(
+        "/v1/providers/anthropic",
+        json={"api_key": "sk-ant-api03-real-looking-key"},
+    )
+    assert r.status_code == 200, r.text
+    assert "warnings" not in r.json()
+
+
+async def test_put_dashboard_placeholder_is_no_change_without_warning(
+    authed_client, tmp_sqlite_url,
+):
+    """Dashboard save-without-retype sends the literal [REDACTED] placeholder.
+    It must not warn (wrong prefix) or overwrite the stored credential."""
+    from app.routes.providers import DASHBOARD_KEY_PLACEHOLDER
+
+    real_key = "sk-proj-real-credential-value-abcdefgh"
+    first = await authed_client.put(
+        "/v1/providers/openai",
+        json={"api_key": real_key},
+    )
+    assert first.status_code == 200, first.text
+    expected_prefix = first.json()["key_prefix"]
+
+    second = await authed_client.put(
+        "/v1/providers/openai",
+        json={"api_key": DASHBOARD_KEY_PLACEHOLDER},
+    )
+    assert second.status_code == 200, second.text
+    body = second.json()
+    assert "warnings" not in body
+    assert body["key_prefix"] == expected_prefix
+    assert body["decryptable"] is True
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from packages.auth.encryption import decrypt_credential
+    from packages.db.engine import build_engine
+    from packages.db.models.provider_key import ProviderKey
+
+    engine = build_engine(tmp_sqlite_url)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as s:
+        row = (
+            await s.execute(
+                select(ProviderKey).where(ProviderKey.provider == "openai")
+            )
+        ).scalar_one()
+    await engine.dispose()
+
+    assert decrypt_credential(row.encrypted_key) == real_key
+    assert row.key_prefix == expected_prefix
+
+
+async def test_put_dashboard_placeholder_does_not_overwrite_undecryptable_row(
+    authed_client, tmp_sqlite_url,
+):
+    """Save-without-retype must not replace a rotated ciphertext. The
+    no-change PUT reports decryptable=true; GET still flags the stored row."""
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.routes.providers import DASHBOARD_KEY_PLACEHOLDER
+    from packages.db.engine import build_engine
+    from packages.db.models.provider_key import ProviderKey
+
+    garbage = b"this-is-not-a-valid-aesgcm-ciphertext"
+    engine = build_engine(tmp_sqlite_url)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as s:
+        s.add(ProviderKey(
+            provider="openai",
+            encrypted_key=garbage,
+            key_prefix="sk-broken...xxxx",
+            is_enabled=True,
+        ))
+        await s.commit()
+    await engine.dispose()
+
+    r = await authed_client.put(
+        "/v1/providers/openai",
+        json={"api_key": DASHBOARD_KEY_PLACEHOLDER},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["decryptable"] is True
+    assert body["key_prefix"] == "sk-broken...xxxx"
+    assert "warnings" not in body
+
+    listing = await authed_client.get("/v1/providers")
+    db_rows = [
+        p for p in listing.json()["providers"]
+        if p["provider"] == "openai" and p["source"] == "db"
+    ]
+    assert len(db_rows) == 1
+    assert db_rows[0]["decryptable"] is False
+
+    engine = build_engine(tmp_sqlite_url)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as s:
+        row = (
+            await s.execute(
+                select(ProviderKey).where(ProviderKey.provider == "openai")
+            )
+        ).scalar_one()
+    await engine.dispose()
+    assert bytes(row.encrypted_key) == garbage
+
+
+async def test_put_dashboard_placeholder_without_stored_key_is_rejected(
+    authed_client,
+):
+    from app.routes.providers import DASHBOARD_KEY_PLACEHOLDER
+
+    r = await authed_client.put(
+        "/v1/providers/openai",
+        json={"api_key": DASHBOARD_KEY_PLACEHOLDER},
+    )
+    assert r.status_code == 422, r.text
+    assert "placeholder" in r.text.lower()
+
+
+async def test_put_strips_whitespace_stores_stripped_key_without_warning(
+    authed_client, tmp_sqlite_url,
+):
+    """Leading/trailing whitespace is stripped once before encrypt, mask,
+    format-check, and storage. A matching prefix with padding must not
+    warn, and the stored/masked value is the stripped key."""
+    padded = "  sk-ant-api03-real-looking-key  "
+    stripped = padded.strip()
+    r = await authed_client.put(
+        "/v1/providers/anthropic",
+        json={"api_key": padded},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "warnings" not in body
+    expected_prefix = stripped[:8] + "..." + stripped[-4:]
+    assert body["key_prefix"] == expected_prefix
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from packages.auth.encryption import decrypt_credential
+    from packages.db.engine import build_engine
+    from packages.db.models.provider_key import ProviderKey
+
+    engine = build_engine(tmp_sqlite_url)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as s:
+        rows = (await s.execute(select(ProviderKey))).scalars().all()
+    await engine.dispose()
+
+    assert len(rows) == 1
+    assert decrypt_credential(rows[0].encrypted_key) == stripped
+    assert rows[0].key_prefix == expected_prefix
+
+
+async def test_put_unknown_provider_does_not_warn(authed_client):
+    """Custom / unknown provider ids are BYOK — no format guess."""
+    r = await authed_client.put(
+        "/v1/providers/my-proxy",
+        json={"api_key": "abc"},
+    )
+    assert r.status_code == 200, r.text
+    assert "warnings" not in r.json()
+
+
 async def test_set_provider_key_then_list(authed_client):
     r = await authed_client.put(
         "/v1/providers/openai",
@@ -77,6 +287,7 @@ async def test_set_provider_key_then_list(authed_client):
     assert len(rows) == 1
     assert rows[0]["provider"] == "openai"
     assert rows[0]["is_enabled"] is True
+    assert rows[0]["decryptable"] is True
     assert "encrypted_key" not in rows[0]
     assert "api_key" not in rows[0]
 
@@ -238,6 +449,7 @@ async def test_list_surfaces_env_provider_keys_with_source_marker(
     )
     assert openai_row["source"] == "env"
     assert openai_row["is_enabled"] is True
+    assert openai_row["decryptable"] is True
     # Plaintext must NOT round-trip through the response
     assert "sk-env-openai-12345" not in r.text
     # Mask preserves first/last hint so operator can identify which key
@@ -441,3 +653,42 @@ async def test_undecryptable_db_row_does_not_suppress_env_entry(
     assert "env" in sources, (
         f"env entry must remain visible when DB ciphertext is corrupt, got: {rows}"
     )
+    db_row = next(p for p in rows if p["source"] == "db")
+    assert db_row["is_enabled"] is True
+    assert db_row["decryptable"] is False, (
+        "rotated/corrupt ciphertext must be flagged so the dashboard does "
+        "not render a green Enabled pill for an unusable key"
+    )
+
+
+async def test_list_flags_undecryptable_db_row_without_env_fallback(
+    authed_client, tmp_sqlite_url,
+):
+    """Issue #137: after a key rotation the dashboard still showed
+    is_enabled=true with no signal. Listing must set decryptable=false
+    even when there is no env fallback to surface."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from packages.db.engine import build_engine
+    from packages.db.models.provider_key import ProviderKey
+
+    engine = build_engine(tmp_sqlite_url)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as s:
+        s.add(ProviderKey(
+            provider="openai",
+            encrypted_key=b"this-is-not-a-valid-aesgcm-ciphertext",
+            key_prefix="sk-broken...xxxx",
+            is_enabled=True,
+        ))
+        await s.commit()
+    await engine.dispose()
+
+    r = await authed_client.get("/v1/providers")
+    assert r.status_code == 200
+    rows = r.json()["providers"]
+    assert len(rows) == 1
+    assert rows[0]["provider"] == "openai"
+    assert rows[0]["source"] == "db"
+    assert rows[0]["is_enabled"] is True
+    assert rows[0]["decryptable"] is False
